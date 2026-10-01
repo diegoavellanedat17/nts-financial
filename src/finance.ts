@@ -5,6 +5,7 @@ export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros
 export type Currency = 'COP' | 'USD';
 export type Context = typeof contexts[number];
 export type Transaction = {
+  balance_check_id?: string | null;
   account_id?: string | null;
   transfer_id?: string | null;
   transfer_role?: string | null;
@@ -111,11 +112,11 @@ export function demoTransactions(): Transaction[] {
 }
 export function exportCsv(rows: Transaction[], sources: IncomeSource[] = [], userId = 'demo') {
   const cell = (value: string | number) => `"${(typeof value === 'string' ? value.replace(/^[\s]*[=+@\-]/, "'$&") : String(value)).replaceAll('"', '""')}"`;
-  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago', 'ID cuenta', 'ID transferencia', 'Rol transferencia'];
+  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago', 'ID cuenta', 'ID transferencia', 'Rol transferencia', 'ID ajuste de saldo'];
   const data = rows.map(row => {
     const t = normalizeTransaction(row);
     const source = sources.find(s => s.id === t.source_id);
-    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.flow_type === 'transfer' ? 'Transferencia' : t.transfer_role === 'fee' ? 'Comisión' : t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' && t.flow_type !== 'transfer' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!], t.account_id || '', t.transfer_id || '', t.transfer_role || ''];
+    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.flow_type === 'transfer' ? 'Transferencia' : t.transfer_role === 'fee' ? 'Comisión' : t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' && t.flow_type !== 'transfer' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!], t.account_id || '', t.transfer_id || '', t.transfer_role || '', t.balance_check_id || ''];
   });
   return '\uFEFF' + [headers, ...data].map(row => row.map(cell).join(';')).join('\r\n');
 }

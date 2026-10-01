@@ -39,3 +39,9 @@
 .finance-chat textarea {min-width:0;flex:1;resize:none;border:1px solid #dce5d7;border-radius:8px;padding:10px;font:inherit;}
 .finance-chat .error {padding:0 12px;}
 .daily-footer {padding-bottom:65px;}
+
+.account-list li > button {flex-basis:100%;background:transparent;color:var(--green);font-size:12px;text-align:left;padding:6px 0;}
+.balance-check-form {margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:10px;background:white;}
+.balance-check-form label {display:grid;gap:8px;}
+.balance-check-form input {width:100%;min-width:0;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;}
+.balance-check-form button {margin:12px 8px 0 0;}
