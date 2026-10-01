@@ -13,17 +13,18 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 function Login() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setMessage('');
     try {
-      const { error } = await supabase!.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin, shouldCreateUser: false } });
-      setMessage(error ? `No pudimos enviar el enlace: ${error.message}` : 'Revisa tu correo. Te enviamos un enlace para entrar, sin contraseña.');
+      const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) setMessage('No pudimos entrar. Revisa tu correo y contraseña.');
     } catch { setMessage('No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'); }
     finally { setBusy(false); }
   }
-  return <main className="login-page"><div className="login-card"><div className="brand-mark">n<span>•</span></div><span className="eyebrow">UN POCO MÁS DE CLARIDAD</span><h1>Tu dinero,<br /><em>en orden.</em></h1><p>Un espacio para cuidar tus finanzas y las de tu consultorio. Un día a la vez.</p><form onSubmit={submit}><label>Tu correo<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="natalia@correo.com" autoComplete="email" /></label><button className="primary" disabled={busy}>{busy ? 'Enviando…' : 'Recibir enlace de acceso'}<ArrowRight size={18} /></button></form><p role="status" className="login-message">{message}</p><small><ShieldCheck size={15} /> Solo tú puedes ver tus registros.</small></div></main>;
+  return <main className="login-page"><div className="login-card"><div className="brand-mark">n<span>•</span></div><span className="eyebrow">UN POCO MÁS DE CLARIDAD</span><h1>Tu dinero,<br /><em>en orden.</em></h1><p>Un espacio para cuidar tus finanzas y las de tu consultorio. Un día a la vez.</p><form onSubmit={submit}><label>Tu correo<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="natalia@correo.com" autoComplete="email" /></label><label>Contraseña<input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" /></label><button className="primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}<ArrowRight size={18} /></button></form><p role="status" className="login-message">{message}</p><small><ShieldCheck size={15} /> Solo tú puedes ver tus registros.</small></div></main>;
 }
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
