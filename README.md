@@ -1,4 +1,4 @@
-# Natalia · Finanzas con calma
+# Personal Finance
 
 Primera versión de una app de finanzas personales y del consultorio. React + TypeScript + Vite, con Supabase Auth/Postgres y despliegue en Vercel. Monedas: COP y USD.
 
@@ -214,3 +214,6 @@ Diego abre por defecto **Total en COP**: disponible, ingresos y gastos del mes s
 `GET /api/trm` obtiene la tasa de [datos.gov.co / Superfinanciera](https://www.datos.gov.co/Econom-a-y-Finanzas/Tasa-de-Cambio-Representativa-del-Mercado-TRM/32sa-8pi3). Busca la vigencia que incluye hoy, no el último registro publicado: la tasa de mañana puede estar disponible antes. Persiste fecha de valoración, COP por USD, vigencia, fuente y fecha de consulta en `exchange_rates`, mediante la migración `20261001060000_exchange_rates.sql`. La primera consulta guarda la tasa; consultas posteriores leen la misma tasa guardada para mantener trazabilidad y evitar llamadas repetidas a la fuente. No crea ni cambia movimientos financieros. La tabla es de lectura para el navegador y de escritura solo para el servidor.
 
 La función requiere `SUPABASE_SERVICE_ROLE_KEY` como variable **solo de servidor** en Vercel (Production/Preview) y `.env.local`. Nunca usar prefijo `VITE_` ni exponer esta clave en el cliente. Vite sirve la misma función en local. La función usa hora de Colombia, valida la vigencia de la respuesta y no retorna totales parciales: si falta TRM y hay USD, Total en COP muestra un guion con Reintentar TRM; las vistas nativas siguen disponibles. La pantalla revisa el cambio de día para dejar de usar la tasa anterior. No usa una tasa inventada ni una tasa vencida como reemplazo.
+
+
+El nombre visible de la aplicación es **Personal Finance**, incluyendo el título del navegador y el nombre sugerido en iPhone. Diego y Natalia siguen siendo los perfiles separados; el nombre activo aparece debajo de la marca.
