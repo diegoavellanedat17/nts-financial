@@ -164,7 +164,7 @@ try {
   await page.getByLabel('Clave de acceso').fill('123456');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('heading', { name: 'Notas, tal como pasó' }).waitFor();
-  assert.match(await page.locator('.daily-brand').textContent(), /diego/);
+  assert.match(await page.locator('.daily-brand').textContent(), /Diego/);
   await page.getByText('Aquí quedarán tus ideas y recordatorios.', { exact: true }).waitFor();
   assert.equal(await page.getByText('Solo de Natalia', { exact: true }).count(), 0);
   await page.getByLabel('Tu nota', { exact: true }).fill('Solo de Diego');
@@ -172,7 +172,7 @@ try {
   await page.getByText('Solo de Diego', { exact: true }).waitFor();
   await page.reload();
   await page.getByText('Solo de Diego', { exact: true }).waitFor();
-  assert.match(await page.locator('.daily-brand').textContent(), /diego/);
+  assert.match(await page.locator('.daily-brand').textContent(), /Diego/);
   await page.getByLabel('Opciones').click();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await page.getByLabel('Clave de acceso').fill('1357955');
