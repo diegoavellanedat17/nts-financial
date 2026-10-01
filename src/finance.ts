@@ -78,6 +78,20 @@ export function summarize(rows: Transaction[], month: string, currency: Currency
   const reserved = Math.round(Object.values(reserves).reduce((a, b) => a + b, 0) * 100) / 100;
   return { monthly, income, expenses, cash, reserves, reserved, available: Math.round((cash - reserved) * 100) / 100 };
 }
+// Derived values at today's rate; never persist these as native transactions.
+export function rowsInCop(rows: Transaction[], copPerUsd: number): Transaction[] {
+  if (!Number.isFinite(copPerUsd) || copPerUsd <= 0) throw new Error('La TRM debe ser positiva.');
+  return rows.map(row => (row.currency || 'COP') === 'USD' ? { ...row, currency: 'COP', amount: Math.round(row.amount * copPerUsd * 100) / 100, reserved: Math.round(row.reserved * copPerUsd * 100) / 100 } : row);
+}
+export function summarizeInCop(rows: Transaction[], month: string, copPerUsd: number) {
+  const cop = summarize(rows, month, 'COP');
+  const usd = summarize(rows, month, 'USD');
+  const combine = (pesos: number, dollars: number) => Math.round((pesos + dollars * copPerUsd) * 100) / 100;
+  // Keep reservations separate before conversion: COP expenses cannot use USD reserves.
+  const reserves = Object.fromEntries(contexts.map(context => [context, combine(cop.reserves[context], usd.reserves[context])])) as Record<Context, number>;
+  const cash = combine(cop.cash, usd.cash), reserved = combine(cop.reserved, usd.reserved);
+  return { monthly: rowsInCop([...cop.monthly, ...usd.monthly], copPerUsd), income: combine(cop.income, usd.income), expenses: combine(cop.expenses, usd.expenses), cash, reserves, reserved, available: Math.round((cash - reserved) * 100) / 100 };
+}
 export function demoTransactions(): Transaction[] {
   const month = today().slice(0, 7);
   const d = (day: number) => `${month}-${String(Math.min(day, Number(today().slice(8)))).padStart(2, '0')}`;

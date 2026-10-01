@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout } from 'node:timers/promises';
 const origin='http://127.0.0.1:4174';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4174','--strictPort'],{stdio:'ignore',env:{...process.env,VITE_SUPABASE_URL:'https://gmail-test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'test-publishable-key',VITE_GOOGLE_GMAIL_CLIENT_ID:'test.apps.googleusercontent.com',VITE_GOOGLE_GMAIL_ACCOUNT:'personal@example.com'}});
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4174','--strictPort'],{stdio:'ignore',env:{...process.env,VITE_SUPABASE_URL:'https://gmail-test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'test-publishable-key',VITE_GOOGLE_GMAIL_CLIENT_ID:'test.apps.googleusercontent.com',VITE_GOOGLE_GMAIL_ACCOUNT:'personal@example.com',SUPABASE_SERVICE_ROLE_KEY:''}});
 let browser;
 try{
  for(let i=0;i<100;i++){try{if((await fetch(origin)).ok)break;}catch{}await setTimeout(200);if(i===99)throw new Error('Vite Gmail no respondió.');}
  browser=await chromium.launch();
  const page=await browser.newPage({viewport:{width:375,height:812}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const rateDay=new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'});
+ let rateAvailable=true;
+ await page.route('**/api/trm',route=>rateAvailable?route.fulfill({json:{date:rateDay,cop_per_usd:4000,valid_from:rateDay,valid_to:rateDay,source:'https://www.datos.gov.co/resource/32sa-8pi3.json',fetched_at:new Date().toISOString()}}):route.fulfill({status:503,json:{error:'unavailable'}}));
  const uid='11111111-1111-4111-8111-111111111111';
  const source={id:'33333333-3333-4333-8333-333333333333',name:'Otro ingreso',context:'Personal'};
  const user={id:uid,email:'diego-access@nts-financial.example.com',aud:'authenticated',role:'authenticated',created_at:new Date().toISOString(),app_metadata:{provider:'email'},user_metadata:{}};
@@ -64,12 +67,22 @@ try{
  await page.getByText('2 avisos encontrados.',{exact:false}).waitFor();assert.equal(await page.locator('.gmail-candidate').count(),0);assert.equal(rpcCalls,2);
  await page.getByRole('button',{name:'Cerrar',exact:true}).click();
  assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
+ assert.match(await page.locator('.income-total').textContent(),/601\.000/);
+ assert.match(await page.locator('.daily-balance h1').textContent(),/551\.000/);
+ assert.match(await page.locator('.trm-note').textContent(),/4\.000,00/);
+ await page.getByRole('button',{name:'COP',exact:true}).click();assert.match(await page.locator('.income-total').textContent(),/0.*COP/);
  await page.getByRole('button',{name:'USD',exact:true}).click();assert.match(await page.locator('.income-total').textContent(),/150,25/);
  await page.getByRole('button',{name:'Revisar Gmail',exact:true}).click();
  await page.getByRole('button',{name:'Conectar Gmail y revisar'}).click();await page.getByText('2 avisos encontrados.',{exact:false}).waitFor();
  for(const width of [375,320]){await page.setViewportSize({width,height:812});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
  await page.screenshot({path:'artifacts/gmail-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Desconectar Gmail'}).click();await page.getByText('Gmail desconectado.',{exact:false}).waitFor();assert.equal(movements.length,2);
+ await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+ rateAvailable=false;
+ await page.getByRole('button',{name:'Total en COP',exact:true}).click();
+ await page.getByRole('button',{name:'Reintentar TRM'}).waitFor();
+ assert.equal(await page.locator('.daily-balance h1').textContent(),'—','No sumar parcialmente sin TRM');
+ await page.getByRole('button',{name:'COP',exact:true}).click();assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
  assert.deepEqual(errors,[]);
  console.log('OK Gmail: cuenta correcta, revisión antes de guardar, COP/USD, referencias, reintento sin duplicados, desconexión y móvil 320/375. APIs simuladas; no se leyeron correos reales.');
 }finally{await browser?.close();server.kill('SIGTERM');}

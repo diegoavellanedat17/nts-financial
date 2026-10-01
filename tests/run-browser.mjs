@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { setTimeout } from 'node:timers/promises';
 import { mkdir } from 'node:fs/promises';
 const origin = 'http://127.0.0.1:4173';
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], { stdio: 'ignore', env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_PUBLISHABLE_KEY: '' } });
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], { stdio: 'ignore', env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_PUBLISHABLE_KEY: '', SUPABASE_SERVICE_ROLE_KEY: '' } });
 try {
   let ready = false;
   for (let attempt = 0; attempt < 100; attempt++) {
