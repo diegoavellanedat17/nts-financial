@@ -1,7 +1,7 @@
-import { personTag } from './person';
+import { personTag as defaultPersonTag } from './person';
 import { supabase } from './supabase';
 import { contexts, normalizeTransaction, type IncomeSource, type Transaction } from './finance';
-export async function readTransactions(userId: string) {
+export async function readTransactions(userId: string, personTag = defaultPersonTag) {
   if (!supabase) throw new Error('Supabase no está conectado.');
   const rows: Transaction[] = [];
   for (let offset = 0; ; offset += 500) {
@@ -11,7 +11,7 @@ export async function readTransactions(userId: string) {
     if (data.length < 500) return rows;
   }
 }
-export async function readSources(userId: string): Promise<IncomeSource[]> {
+export async function readSources(userId: string, personTag = defaultPersonTag): Promise<IncomeSource[]> {
   if (!supabase) throw new Error('Supabase no está conectado.');
   const rows: IncomeSource[] = [];
   for (let offset = 0; ; offset += 500) {
@@ -21,11 +21,23 @@ export async function readSources(userId: string): Promise<IncomeSource[]> {
     if (data.length < 500) return rows;
   }
 }
-export async function loadSources(userId: string) {
-  const sources = await readSources(userId);
+export async function loadSources(userId: string, personTag = defaultPersonTag) {
+  const sources = await readSources(userId, personTag);
   if (sources.length) return sources;
   // La restricción única hace seguro el primer acceso simultáneo desde varios dispositivos.
   const { error } = await supabase!.from('income_sources').upsert(contexts.map(context => ({ user_id: userId, person_tag: personTag, name: context === 'Personal' ? 'Otro ingreso' : context, context })), { onConflict: 'user_id,person_tag,name', ignoreDuplicates: true });
   if (error) throw error;
-  return readSources(userId);
+  return readSources(userId, personTag);
+}
+
+export type RawNote = { id: string; person_tag: string; body: string; created_at: string; updated_at: string };
+export async function readNotes(userId: string, personTag = defaultPersonTag): Promise<RawNote[]> {
+ if (!supabase) throw new Error('Supabase no está conectado.');
+ const rows: RawNote[] = [];
+ for (let offset=0; ;offset+=500) {
+  const { data,error }=await supabase.from('notes').select('id,person_tag,body,created_at,updated_at').eq('user_id',userId).eq('person_tag',personTag).order('created_at',{ascending:false}).order('id').range(offset,offset+499);
+  if(error)throw error;
+  rows.push(...data as RawNote[]);
+  if(data.length<500)return rows;
+ }
 }

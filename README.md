@@ -47,7 +47,7 @@ La migración de almacenamiento y el esquema de Supabase conservan los movimient
 
 1. Crea un proyecto Supabase.
 2. Para un proyecto nuevo, ejecuta `supabase/schema.sql` una sola vez en el SQL Editor. Si ya ejecutaste la versión anterior, aplica solamente `supabase/migrations/20261001000000_reporting_foundation.sql`. Crea las tablas y políticas RLS por usuario; la llave pública no permite leer registros de otros usuarios.
-3. En Authentication → Users, crea una cuenta compartida con correo `natalia-access@nts-financial.example.com`, clave `1357955` y correo confirmado. La pantalla solo solicita la clave; `signInWithPassword` valida el acceso contra Supabase. No hay registro público ni envío de correos.
+3. En Authentication → Users, crea las cuentas `natalia-access@nts-financial.example.com` con clave `1357955` y `diego-access@nts-financial.example.com` con clave `123456`, ambas con correo confirmado. La pantalla solo solicita la clave; `signInWithPassword` valida el acceso contra Supabase. No hay registro público ni envío de correos.
 4. En Authentication → URL Configuration, configura Site URL y Redirect URLs con `http://localhost:5173` y después con el dominio de Vercel. Estos dominios quedan preparados para futuros flujos de recuperación de cuenta.
 5. Copia `.env.example` a `.env.local` y completa `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` con la URL del proyecto y su llave pública/publishable. Nunca uses una llave secreta o service_role.
 6. Reinicia `npm run dev`. Aparecerá el acceso por correo y el espacio empezará vacío.
@@ -133,15 +133,15 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las tres migraciones están aplicadas, incluida `20261001010000_people_and_traceability.sql` para personas y trazabilidad. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. La clave compartida de esta versión está incluida en el cliente según lo solicitado.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las cinco migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
 
 Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
 ## Acceso rápido
 
-La clave fija solicitada para esta versión es `1357955`. La cuenta compartida ya está creada en el proyecto publicado: todos los dispositivos que entren con esa clave consultan los mismos movimientos de Natalia. Supabase conserva y renueva la sesión en el navegador hasta cerrar sesión o borrar sus datos. La demo local también recuerda el acceso.
+Las claves fijas de esta versión son `1357955` para Natalia y `123456` para Diego. Cada una inicia su propia cuenta de Supabase y consulta sus movimientos y notas. Supabase conserva y renueva la sesión en el navegador hasta cerrar sesión o borrar sus datos. La demo local también recuerda el acceso.
 
-Esta clave está incluida en el código del cliente por decisión de esta versión; cualquiera con acceso al código o la clave puede entrar al espacio compartido. Las políticas RLS siguen exigiendo una sesión válida de Supabase. Los registros de otras cuentas, si existen, no se trasladan ni eliminan.
+Estas claves están incluidas en el código del cliente por decisión de esta versión; quien conozca una clave puede entrar a esa cuenta. Las políticas RLS siguen exigiendo una sesión válida de Supabase. Los registros de otras cuentas, si existen, no se trasladan ni eliminan.
 
 ## Rutina y trazabilidad
 
@@ -151,7 +151,7 @@ Esta clave está incluida en el código del cliente por decisión de esta versi�
 - Si el pago corresponde a un trabajo anterior, indica su fecha de periodo. Cuando se deja vacía se asume la fecha del pago; los análisis deben tener en cuenta esa suposición.
 - Una vez por semana revisa recibos/extractos y corrige conceptos incompletos. Una vez al mes revisa ingresos/costos del consultorio antes de decidir cuánto dinero retirar para uso personal. Un retiro entre tus espacios se clasifica como transferencia, no como otro ingreso ganado.
 
-`transactions.person_tag` distingue `natalia` y, en la futura app, `diego`. Configura `VITE_PERSON_TAG=diego` para que esa app filtre movimientos y fuentes de Diego sin crear otra tabla. El tag clasifica el dueño económico del movimiento; con la clave compartida no es una frontera de permisos entre personas ni identifica quién estaba usando el dispositivo. La sesión de Supabase identifica la cuenta que realizó el cambio.
+`transactions.person_tag` distingue `natalia` y `diego` en la misma tabla. La persona activa se obtiene de la cuenta autenticada; las lecturas y escrituras filtran por cuenta y tag. Las políticas RLS separan las cuentas y la sesión identifica la cuenta que realizó cada cambio.
 
 `change_history` conserva creaciones, correcciones y eliminaciones de movimientos y fuentes con las versiones antes/después y fecha del evento. Solo los triggers escriben en el historial; las cuentas de la app pueden consultarlo pero no modificarlo. El historial empieza al aplicar `20261001010000_people_and_traceability.sql`. Los registros anteriores se guardan como `SNAPSHOT`: no se reconstruyen correcciones anteriores que nunca fueron registradas. `created_at` conserva su fecha y `updated_at` registra cambios posteriores.
 
@@ -160,3 +160,15 @@ Esta clave está incluida en el código del cliente por decisión de esta versi�
 Los reportes actuales cubren movimientos registrados. Todavía no hay agenda de cobros, facturas pendientes, saldos de tarjetas ni cuentas conciliadas. Un movimiento con medio tarjeta crédito describe la compra registrada, pero no reconstruye la deuda de la tarjeta ni un flujo bancario conciliado. La liquidación de esa misma compra no se debe registrar como un segundo gasto operativo.
 
 La primera etapa es registrar movimientos reales durante 10 días, sin exigir todos los campos opcionales. Al terminar se revisan fuentes, conceptos, espacios, fechas y registros incompletos para decidir la siguiente mejora a partir de datos. No hay un análisis programado: se inicia cuando el usuario lo solicita.
+
+## Notas libres
+
+La sección «Notas, tal como pasó» guarda texto crudo (incluidos saltos de línea), persona y fechas en `notes`. Se puede corregir y eliminar; los cambios quedan en `change_history`. Las notas no crean movimientos ni cambian saldos. Para analizarlas se leen junto con los movimientos del mismo periodo y persona, sin contar dos veces montos mencionados en el texto. La demo las conserva en su propio almacenamiento del navegador. La migración `20261001020000_raw_notes.sql` agrega la tabla y sus políticas.
+
+## Dos accesos y análisis de notas
+
+Natalia entra con `1357955` y Diego con `123456`. Cada clave inicia una cuenta distinta de Supabase; la app obtiene la persona de la sesión y filtra movimientos, fuentes y notas por cuenta y tag. Cada navegador conserva el perfil con el que entró. Salir cierra solo la sesión de ese navegador. El contenido de cada persona se conserva separado por RLS en la misma tabla.
+
+Las notas pueden explicar montos, origen, destino/cuenta, fechas y dudas con texto libre. Primero se analiza lo escrito. En una etapa posterior, las reglas acordadas podrán convertir patrones repetidos en registros estructurados: la nota original se conserva, cada resultado debe referenciarla y se debe impedir registrar dos veces la misma extracción. Esa conversión todavía no se ejecuta automáticamente y no modifica saldos en esta versión.
+
+Las cuentas de Natalia y Diego ya están creadas en el proyecto publicado.

@@ -31,4 +31,8 @@ order by date desc;
 
 -- Creaciones, correcciones y eliminaciones; las filas eliminadas siguen aquí.
 select recorded_at,person_tag,table_name,record_id,operation,actor_user_id,before_data,after_data
-from public.change_history order by recorded_at desc,id;
+from public.change_history order by recorded_at desc,event_sequence desc;
+
+-- Notas crudas para analizar sin transformarlas en movimientos ni sumarlas como pagos.
+select id,user_id,person_tag,body,created_at,updated_at
+from public.notes order by person_tag,created_at,id;

@@ -1,4 +1,5 @@
-import { personTag, personName } from './person';
+import { Notes } from './Notes';
+import { people, personForEmail, nameForPerson } from './person';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, Check, Download, LogOut, MoreHorizontal, ShieldCheck, Trash2, X, Pencil, CircleHelp } from 'lucide-react';
@@ -6,30 +7,28 @@ import { contexts, defaultSources, demoTransactions, expenseCategories, exportCs
 import { supabase, supabaseConfigError } from './supabase';
 import { loadSources, readSources, readTransactions } from './data';
 
-const STORAGE = personTag === 'natalia' ? 'natalia-finances-v1' : `${personTag}-finances-v1`;
-const ACCESS_CODE = '1357955';
-const ACCESS_EMAIL = 'natalia-access@nts-financial.example.com';
 const LOCAL_ACCESS = 'natalia-access-v1';
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} onClose={onClose} aria-labelledby="modal-title"><div className="modal-header"><h2 id="modal-title">{title}</h2><button className="icon-button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button></div>{children}</dialog>;
 }
-function Login({ onLocalAccess }: { onLocalAccess: () => void }) {
+function Login({ onLocalAccess }: { onLocalAccess: (tag: string) => void }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function submit(e: FormEvent) {
     e.preventDefault(); setMessage('');
-    if (password !== ACCESS_CODE) { setMessage('Esa clave no es correcta. Inténtalo de nuevo.'); return; }
+    const person = people.find(p => p.code === password);
+    if (!person) { setMessage('Esa clave no es correcta. Inténtalo de nuevo.'); return; }
     setBusy(true);
     try {
       if (supabase) {
-        const { error } = await supabase.auth.signInWithPassword({ email: ACCESS_EMAIL, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: person.email, password });
         if (error) setMessage('No pudimos entrar. Inténtalo de nuevo.');
       } else {
-        localStorage.setItem(LOCAL_ACCESS, 'granted');
-        onLocalAccess();
+        localStorage.setItem(LOCAL_ACCESS, person.tag);
+        onLocalAccess(person.tag);
       }
     } catch { setMessage('No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'); }
     finally { setBusy(false); }
@@ -38,7 +37,7 @@ function Login({ onLocalAccess }: { onLocalAccess: () => void }) {
 }
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [localAccess, setLocalAccess] = useState(() => localStorage.getItem(LOCAL_ACCESS) === 'granted');
+  const [localAccess, setLocalAccess] = useState(() => { const saved = localStorage.getItem(LOCAL_ACCESS); return saved === 'granted' ? 'natalia' : people.find(p => p.tag === saved)?.tag || ''; });
   const [loading, setLoading] = useState(!!supabase);
   const [authError, setAuthError] = useState('');
   useEffect(() => {
@@ -53,10 +52,13 @@ export default function App() {
   if (supabaseConfigError) return <div className="loading" role="alert">{supabaseConfigError}</div>;
   if (loading) return <div className="loading">Preparando tu espacio…</div>;
   if (authError) return <div className="loading" role="alert">{authError}<button onClick={() => window.location.reload()}>Reintentar</button></div>;
-  if (supabase ? !session : !localAccess) return <Login onLocalAccess={() => setLocalAccess(true)} />;
-  return <Dashboard key={session?.user.id || 'demo'} userId={session?.user.id} />;
+  if (supabase ? !session : !localAccess) return <Login onLocalAccess={setLocalAccess} />;
+  const activePerson = session ? personForEmail(session.user.email) : localAccess;
+  return <Dashboard key={session?.user.id || activePerson} userId={session?.user.id} personTag={activePerson} />;
 }
-function Dashboard({ userId }: { userId?: string }) {
+function Dashboard({ userId, personTag }: { userId?: string; personTag: string }) {
+  const personName = nameForPerson(personTag);
+  const STORAGE = `${personTag}-finances-v1`;
   const [items, setItems] = useState<Transaction[]>([]);
   const [sources, setSources] = useState<IncomeSource[]>([]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -89,7 +91,7 @@ function Dashboard({ userId }: { userId?: string }) {
               if (data.length < 500) return rows;
             }
           }
-          const [transactions, savedBudgets, savedSources] = await Promise.all([readTransactions(userId), readBudgets(), loadSources(userId)]);
+          const [transactions, savedBudgets, savedSources] = await Promise.all([readTransactions(userId, personTag), readBudgets(), loadSources(userId, personTag)]);
           if (active) { setItems(transactions); setSources(savedSources); setBudgets(Object.fromEntries(savedBudgets.map(b => [b.month, b.amount]))); }
         } else {
           const stored = localStorage.getItem(STORAGE);
@@ -97,7 +99,7 @@ function Dashboard({ userId }: { userId?: string }) {
           if (!Array.isArray(data.items) || typeof data.budgets !== 'object' || !data.budgets || data.items.some((t: Transaction) => validateTransaction(t))) throw new Error('Los datos locales no se pudieron leer. Conserva una copia antes de limpiar el almacenamiento del navegador.');
           const savedSources = data.sources || defaultSources();
           if (!Array.isArray(savedSources) || savedSources.some((s: IncomeSource) => !s.id || typeof s.name !== 'string' || !contexts.includes(s.context))) throw new Error('No pudimos leer tus fuentes de ingreso.');
-          const migratedItems = data.items.map((t: Transaction) => normalizeTransaction(t, savedSources));
+          const migratedItems = data.items.map((t: Transaction) => normalizeTransaction({ ...t, person_tag: personTag }, savedSources));
           if (active) { localStorage.setItem(STORAGE, JSON.stringify({ items: migratedItems, budgets: data.budgets, sources: savedSources })); setItems(migratedItems); setSources(savedSources); setBudgets(data.budgets); }
         }
       } catch (e) { if (active) { setError(e instanceof Error ? e.message : 'No pudimos cargar tus datos. Revisa la conexión y la configuración de Supabase.'); setLoadFailed(true); } }
@@ -105,14 +107,14 @@ function Dashboard({ userId }: { userId?: string }) {
     }
     void load();
     return () => { active = false; };
-  }, [userId, reload]);
+  }, [userId, personTag, reload]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4000); return () => clearTimeout(timer); }, [notice]);
   function persist(nextItems: Transaction[], nextBudgets: Budgets, nextSources = sources) {
     if (!userId) localStorage.setItem(STORAGE, JSON.stringify({ items: nextItems, budgets: nextBudgets, sources: nextSources }));
     setItems(nextItems); setBudgets(nextBudgets); setSources(nextSources);
   }
   async function save(transaction: Transaction) {
-    transaction = normalizeTransaction(transaction);
+    transaction = normalizeTransaction({ ...transaction, person_tag: personTag });
     if (transaction.kind === 'income' && !sources.some(s => s.id === transaction.source_id && s.context === transaction.context)) { setError('Selecciona una fuente de ingreso válida.'); return; }
     const invalid = validateTransaction(transaction); if (invalid) { setError(invalid); return; }
     setBusy(true); setError('');
@@ -167,14 +169,14 @@ function Dashboard({ userId }: { userId?: string }) {
     setBusy(true); setError('');
     try {
       // Se vuelve a leer Supabase completo; no se exporta una copia local posiblemente desactualizada.
-      const [rows, savedSources] = userId ? await Promise.all([readTransactions(userId), readSources(userId)]) : [ordered, sources];
+      const [rows, savedSources] = userId ? await Promise.all([readTransactions(userId, personTag), readSources(userId, personTag)]) : [ordered, sources];
       const url = URL.createObjectURL(new Blob([exportCsv(rows, savedSources, userId)], { type: 'text/csv;charset=utf-8;' }));
       const a = document.createElement('a'); a.href = url; a.download = `${personTag}-movimientos.csv`; a.click(); URL.revokeObjectURL(url);
     } catch { setError('No pudimos descargar los datos. Revisa tu conexión e inténtalo otra vez.'); }
     finally { setBusy(false); }
   }
   return <main className="daily-page">
-    <header className="daily-header"><a href="#" className="daily-brand" onClick={e => e.preventDefault()}>{personName.toLocaleLowerCase()}<span>Mi dinero, día a día.</span></a><details className="options-menu"><summary aria-label="Opciones"><MoreHorizontal size={24} /></summary><div><button onClick={() => setHelpOpen(true)}><CircleHelp size={17} />Cómo funciona</button><button onClick={() => { setError(''); setSourcesOpen(true); }} disabled={!ready || loadFailed}>Fuentes de ingreso</button><button onClick={download} disabled={busy || !ready || loadFailed}><Download size={17} />Descargar movimientos</button>{!userId && <button onClick={() => { setError(''); setResetOpen(true); }} disabled={!ready || loadFailed}><Trash2 size={17} />Empezar desde cero</button>}{userId && <button onClick={async () => { const { error } = await supabase!.auth.signOut(); if (error) setError('No pudimos cerrar tu sesión. Inténtalo otra vez.'); }}><LogOut size={17} />Salir</button>}</div></details></header>
+    <header className="daily-header"><a href="#" className="daily-brand" onClick={e => e.preventDefault()}>{personName.toLocaleLowerCase()}<span>Mi dinero, día a día.</span></a><details className="options-menu"><summary aria-label="Opciones"><MoreHorizontal size={24} /></summary><div><button onClick={() => setHelpOpen(true)}><CircleHelp size={17} />Cómo funciona</button><button onClick={() => { setError(''); setSourcesOpen(true); }} disabled={!ready || loadFailed}>Fuentes de ingreso</button><button onClick={download} disabled={busy || !ready || loadFailed}><Download size={17} />Descargar movimientos</button>{!userId && <button onClick={() => { setError(''); setResetOpen(true); }} disabled={!ready || loadFailed}><Trash2 size={17} />Empezar desde cero</button>}{<button onClick={async () => { if (!userId) { localStorage.removeItem(LOCAL_ACCESS); window.location.reload(); return; } const { error } = await supabase!.auth.signOut({ scope: 'local' }); if (error) setError('No pudimos cerrar tu sesión. Inténtalo otra vez.'); }}><LogOut size={17} />Salir</button>}</div></details></header>
     {!userId && <p className="demo-note">Modo demo · Datos de ejemplo. Tus cambios se guardan en este navegador.</p>}
     {error && !editing && !deleteItem && !resetOpen && !sourcesOpen && <p className="error" role="alert">{error}{loadFailed && <button onClick={() => setReload(r => r + 1)}>Reintentar</button>}</p>}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
@@ -185,16 +187,17 @@ function Dashboard({ userId }: { userId?: string }) {
       <section className="office-note"><div className="office-heading"><h2>¿Cómo va el consultorio?</h2><span>Este mes</span></div><div className="office-totals"><span>Recibió <strong>{money(officeIncome)}</strong></span><span>Gastó <strong>{money(officeExpenses)}</strong></span></div><p>{officeGap > 0 ? <>Le faltan <strong>{money(officeGap)}</strong> para cubrir sus gastos con lo que recibió.</> : office.length ? 'Sus ingresos cubren los gastos que has registrado.' : 'Aquí verás si lo que recibe alcanza para sus gastos.'}</p></section>
       <details className="spending-summary" open={spendingOpen} onToggle={e => setSpendingOpen(e.currentTarget.open)}><summary>¿En qué se fue el dinero? <span>Este mes</span></summary><SpendingBreakdown rows={received} /></details>
       <section className="recent-section"><h2>Lo último que registraste</h2>{ordered.length ? <ul className="recent-list">{(showAll ? ordered : ordered.slice(0, 5)).map(t => <li key={t.id}><button className="recent-edit" aria-label={`Editar ${t.description}`} onClick={() => open(t.kind, t)}><span className={`entry-icon ${t.kind}`}>{t.kind === 'income' ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}</span><span className="entry-copy"><strong>{t.description}</strong><span>{t.kind === 'income' ? sources.find(s => s.id === t.source_id)?.name || t.context : `${t.context} · ${t.category}`} · {new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(new Date(`${t.date}T12:00:00`))}{t.date > today() ? ' · Fecha futura, aún no cuenta en el saldo' : ''}</span></span><span className={`entry-amount ${t.kind}`}>{t.kind === 'income' ? '+' : '−'}{money(t.amount)}</span><Pencil className="edit-hint" size={13} /></button></li>)}</ul> : <p className="empty-note">Empieza con un ingreso o un gasto. Solo necesitas el monto y de dónde viene o para qué fue.</p>}{ordered.length > 5 && <button className="show-more" onClick={() => setShowAll(!showAll)}>{showAll ? 'Ver menos' : 'Ver anteriores'}</button>}</section>
+      <Notes userId={userId} personTag={personTag} />
       <footer className="daily-footer">Un registro a la vez.</footer>
     </>}
-    {editing && <Modal title={editing.transaction ? 'Corregir movimiento' : editing.kind === 'income' ? '¿Cuánto recibiste?' : '¿Cuánto pagaste?'} onClose={() => { if (!busy) { setEditing(null); setError(''); } }}><QuickForm sources={sources} kind={editing.kind} transaction={editing.transaction} onSave={save} busy={busy} error={error} />{editing.transaction && <button className="delete-link" disabled={busy} onClick={() => { setDeleteItem(editing.transaction); setEditing(null); setError(''); }}>Eliminar este movimiento</button>}</Modal>}
+    {editing && <Modal title={editing.transaction ? 'Corregir movimiento' : editing.kind === 'income' ? '¿Cuánto recibiste?' : '¿Cuánto pagaste?'} onClose={() => { if (!busy) { setEditing(null); setError(''); } }}><QuickForm personTag={personTag} sources={sources} kind={editing.kind} transaction={editing.transaction} onSave={save} busy={busy} error={error} />{editing.transaction && <button className="delete-link" disabled={busy} onClick={() => { setDeleteItem(editing.transaction); setEditing(null); setError(''); }}>Eliminar este movimiento</button>}</Modal>}
     {deleteItem && <Modal title="Eliminar movimiento" onClose={() => { if (!busy) { setDeleteItem(null); setError(''); } }}><p className="modal-copy">Se quitará «{deleteItem.description}» por {money(deleteItem.amount)} de tus movimientos.{userId && ' Su historial quedará guardado.'}</p>{error && <p className="error" role="alert">{error}</p>}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={() => setDeleteItem(null)}>Cancelar</button><button className="danger" disabled={busy} onClick={remove}>{busy ? 'Eliminando…' : 'Eliminar movimiento'}</button></div></Modal>}
     {resetOpen && <Modal title="Empezar desde cero" onClose={() => { setResetOpen(false); setError(''); }}><p className="modal-copy">Se borrarán los datos de demo guardados en este navegador. Puedes descargarlos desde Opciones antes de continuar.</p>{error && <p className="error" role="alert">{error}</p>}<div className="modal-actions"><button className="secondary" onClick={() => setResetOpen(false)}>Cancelar</button><button className="danger" onClick={() => { try { persist([], {}, sources); setResetOpen(false); setNotice('Listo para empezar.'); } catch { setError('No pudimos guardar el cambio.'); } }}>Borrar y empezar</button></div></Modal>}
     {sourcesOpen && <Modal title="Tus fuentes de ingreso" onClose={() => { if (!busy) { setSourcesOpen(false); setError(''); } }}><SourcesForm sources={sources} busy={busy} error={error} onSave={saveSource} /></Modal>}
     {helpOpen && <Modal title="Así de sencillo" onClose={() => setHelpOpen(false)}><div className="help-content"><h3>Una rutina que ayuda</h3><p>Separa Personal y Consultorio aunque pagues desde la misma cuenta. Usa conceptos claros y revisa los movimientos contra tus recibos una vez por semana. Cada mes revisa los gastos del consultorio antes de decidir cuánto sacar para ti.</p><h3>Recibí dinero</h3><p>Registra cada pago cuando llegue: un abono del consultorio, el pago de una clínica o cualquier otro ingreso. Las fechas pueden ser diferentes.</p><h3>Pagué algo</h3><p>Escribe el monto, toca Personal o Consultorio y elige una categoría si quieres. La nota y la fecha son opcionales; por defecto se guarda con la fecha de hoy.</p><h3>Fuentes y periodos</h3><p>En Opciones puedes poner los nombres de tus clínicas y agregar otras fuentes. En los detalles de un movimiento puedes indicar cuándo se generó: por ejemplo, un trabajo de septiembre cobrado en octubre. El disponible siempre usa la fecha de pago.</p><h3>Tu disponible</h3><p>Lo recibido hasta hoy menos lo pagado y el dinero apartado para tratamientos. Empiezas desde cero: registra lo que ya tienes como un ingreso y elige «Saldo inicial» en sus detalles. Así no se cuenta como ganancia.</p><h3>Tu consultorio</h3><p>Compara lo que recibió y gastó este mes. Si gastó más, verás cuánto le falta cubrir con otros ingresos.</p><p>Para corregir algo, toca el movimiento. Las correcciones y eliminaciones quedan en el historial de Supabase desde que se habilitó esta función. Dentalink se lleva aparte; puedes usar la referencia para relacionar un caso con sus abonos y gastos.</p></div></Modal>}
   </main>;
 }
-function QuickForm({ kind, transaction, sources, onSave, busy, error }: { kind: 'income' | 'expense'; transaction: Transaction | null; sources: IncomeSource[]; onSave: (t: Transaction) => Promise<void>; busy: boolean; error: string }) {
+function QuickForm({ kind, transaction, sources, onSave, busy, error, personTag }: { personTag: string; kind: 'income' | 'expense'; transaction: Transaction | null; sources: IncomeSource[]; onSave: (t: Transaction) => Promise<void>; busy: boolean; error: string }) {
   const [context, setContext] = useState<Context>(transaction?.context || (kind === 'income' ? sources.find(s => s.context === 'Consultorio')?.context || sources[0]?.context || 'Personal' : 'Personal'));
   const [sourceId, setSourceId] = useState(transaction?.source_id || sources.find(s => s.context === (transaction?.context || 'Consultorio'))?.id || sources[0]?.id || '');
   const [category, setCategory] = useState(transaction?.category || (kind === 'income' && context.startsWith('Clínica') ? 'Honorarios' : 'Otros'));

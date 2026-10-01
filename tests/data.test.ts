@@ -35,6 +35,12 @@ describe('Lectura completa para CSV', () => {
     expect(calls.map(c => c.from)).toEqual([0, 500, 1000]);
     expect(calls.every(c => c.owner === 'persona-1' && c.person === 'natalia')).toBe(true);
   });
+  it('la misma tabla filtra el tag de Diego', async () => {
+    mockRows('transactions', 1);
+    await readTransactions('cuenta-diego', 'diego');
+    expect(calls[0].owner).toBe('cuenta-diego');
+    expect(calls[0].person).toBe('diego');
+  });
   it('también pagina las fuentes y conserva sus IDs', async () => {
     mockRows('income_sources', 501);
     const rows = await readSources('persona-2');
