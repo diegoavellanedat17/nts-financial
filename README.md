@@ -133,7 +133,7 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Ambas migraciones están aplicadas. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. La clave compartida de esta versión está incluida en el cliente según lo solicitado.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las tres migraciones están aplicadas, incluida `20261001010000_people_and_traceability.sql` para personas y trazabilidad. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. La clave compartida de esta versión está incluida en el cliente según lo solicitado.
 
 Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
@@ -142,3 +142,21 @@ Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` 
 La clave fija solicitada para esta versión es `1357955`. La cuenta compartida ya está creada en el proyecto publicado: todos los dispositivos que entren con esa clave consultan los mismos movimientos de Natalia. Supabase conserva y renueva la sesión en el navegador hasta cerrar sesión o borrar sus datos. La demo local también recuerda el acceso.
 
 Esta clave está incluida en el código del cliente por decisión de esta versión; cualquiera con acceso al código o la clave puede entrar al espacio compartido. Las políticas RLS siguen exigiendo una sesión válida de Supabase. Los registros de otras cuentas, si existen, no se trasladan ni eliminan.
+
+## Rutina y trazabilidad
+
+- Separa Personal y Consultorio en cada movimiento, aunque compartan una cuenta bancaria. Procura mantener también el dinero en cuentas separadas.
+- Registra cada abono cuando llegue; no cuentes como dinero disponible el valor total de un tratamiento si todavía no lo han pagado. Aparta lo necesario para materiales y laboratorio.
+- Usa conceptos consistentes: arriendo, laboratorio, materiales, mercado, transporte. En detalles puedes identificar el tercero, medio de pago y referencia del caso en Dentalink/recibo.
+- Si el pago corresponde a un trabajo anterior, indica su fecha de periodo. Cuando se deja vacía se asume la fecha del pago; los análisis deben tener en cuenta esa suposición.
+- Una vez por semana revisa recibos/extractos y corrige conceptos incompletos. Una vez al mes revisa ingresos/costos del consultorio antes de decidir cuánto dinero retirar para uso personal. Un retiro entre tus espacios se clasifica como transferencia, no como otro ingreso ganado.
+
+`transactions.person_tag` distingue `natalia` y, en la futura app, `diego`. Configura `VITE_PERSON_TAG=diego` para que esa app filtre movimientos y fuentes de Diego sin crear otra tabla. El tag clasifica el dueño económico del movimiento; con la clave compartida no es una frontera de permisos entre personas ni identifica quién estaba usando el dispositivo. La sesión de Supabase identifica la cuenta que realizó el cambio.
+
+`change_history` conserva creaciones, correcciones y eliminaciones de movimientos y fuentes con las versiones antes/después y fecha del evento. Solo los triggers escriben en el historial; las cuentas de la app pueden consultarlo pero no modificarlo. El historial empieza al aplicar `20261001010000_people_and_traceability.sql`. Los registros anteriores se guardan como `SNAPSHOT`: no se reconstruyen correcciones anteriores que nunca fueron registradas. `created_at` conserva su fecha y `updated_at` registra cambios posteriores.
+
+`supabase/reporting_examples.sql` incluye consultas por persona/espacio, fuente, fechas, conceptos incompletos e historial. Cuando se solicite un análisis, se puede consultar Supabase para el periodo indicado; no hay un proceso del asistente monitoreando la base en segundo plano. El usuario debe aportar datos reales completos para obtener conclusiones útiles.
+
+Los reportes actuales cubren movimientos registrados. Todavía no hay agenda de cobros, facturas pendientes, saldos de tarjetas ni cuentas conciliadas. Un movimiento con medio tarjeta crédito describe la compra registrada, pero no reconstruye la deuda de la tarjeta ni un flujo bancario conciliado. La liquidación de esa misma compra no se debe registrar como un segundo gasto operativo.
+
+La primera etapa es registrar movimientos reales durante 10 días, sin exigir todos los campos opcionales. Al terminar se revisan fuentes, conceptos, espacios, fechas y registros incompletos para decidir la siguiente mejora a partir de datos. No hay un análisis programado: se inicia cuando el usuario lo solicita.

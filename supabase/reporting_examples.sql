@@ -1,34 +1,34 @@
--- Ejecutar después de schema.sql o de la migración reporting_foundation.
--- Estas consultas se pueden exportar a CSV desde los resultados del SQL Editor.
--- El SQL Editor usa privilegios de administración y puede ver todas las personas.
--- En la app las vistas respetan la cuenta autenticada y sus políticas RLS.
-
--- Tabla plana completa, con persona, fuente, categoría y ambas fechas.
+-- Después de las tres migraciones. SQL Editor tiene acceso administrativo.
+-- La API respeta RLS por cuenta; person_tag clasifica personas, no autentica personas.
 select * from public.movements_export
-order by person_id, payment_date, transaction_id;
+order by person_tag,payment_date,transaction_id;
 
--- En qué gastó cada persona, separado entre Personal y Consultorio.
-select person_id, month, context, category, spent_cop
-from public.spending_monthly
-order by person_id, month desc, context, spent_cop desc;
+-- En qué se gasta cada persona, sin mezclar Personal con Consultorio.
+select person_tag,date_trunc('month',date)::date as month,context,category,sum(amount) as spent_cop
+from public.transactions where kind='expense' and flow_type='operating'
+group by person_tag,date_trunc('month',date)::date,context,category
+order by person_tag,month desc,context,spent_cop desc;
 
--- Entradas/salidas de efectivo, incluyendo saldos iniciales y financiación.
-select person_id, month,
-  sum(received_cop) as received_cop,
-  sum(paid_cop) as paid_cop,
-  sum(net_cashflow_cop) as net_cashflow_cop
-from public.cashflow_monthly
-group by person_id, month
-order by person_id, month;
+select * from public.person_cashflow_monthly
+order by person_tag,month desc,context,flow_type;
 
--- Base de resultado del consultorio por periodo (operaciones ya registradas).
--- No es PyL contable completo: faltan obligaciones sin cobrar/pagar, depreciación,
--- inventario, impuestos y ajustes. Las fechas históricas se deben revisar.
-select person_id, month,
-  sum(case when kind = 'income' then amount_cop else 0 end) as income_cop,
-  sum(case when kind = 'expense' then amount_cop else 0 end) as expenses_cop,
-  sum(recorded_result_cop) as recorded_result_cop
-from public.pnl_recorded_monthly
-where context = 'Consultorio'
-group by person_id, month
-order by person_id, month;
+-- Resultado de movimientos registrados; faltan cobros/pagos pendientes y ajustes contables.
+select person_tag,month,sum(income_cop) as income_cop,sum(expense_cop) as expense_cop,sum(recorded_result_cop) as result_cop
+from public.person_pnl_recorded_monthly where context='Consultorio'
+group by person_tag,month order by person_tag,month desc;
+
+-- Dinámica de pagos: fuente, fechas de cobro y tiempo entre trabajo y pago.
+-- competence_date se asume igual al pago cuando no se especificó; cero no prueba pago inmediato.
+select person_tag,income_source,payment_date,competence_date,
+ payment_date-competence_date as recorded_days_to_payment,amount_cop,reference
+from public.movements_export where kind='income' and flow_type='operating'
+order by person_tag,income_source,payment_date;
+
+-- Revisión semanal: completar conceptos y clasificar gastos.
+select id,person_tag,date,context,amount,description
+from public.transactions where category='Otros' and flow_type='operating'
+order by date desc;
+
+-- Creaciones, correcciones y eliminaciones; las filas eliminadas siguen aquí.
+select recorded_at,person_tag,table_name,record_id,operation,actor_user_id,before_data,after_data
+from public.change_history order by recorded_at desc,id;

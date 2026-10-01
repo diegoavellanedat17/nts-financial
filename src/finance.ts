@@ -1,3 +1,4 @@
+import { personTag } from './person';
 export const contexts = ['Personal', 'Consultorio', 'Clínica 1', 'Clínica 2'] as const;
 export const expenseCategories = ['Alimentación', 'Transporte', 'Hogar', 'Compras', 'Bienestar', 'Arriendo consultorio', 'Materiales', 'Laboratorio', 'Servicios', 'Otros'] as const;
 export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros'] as const;
@@ -10,8 +11,14 @@ export type Transaction = {
   competence_date?: string;
   flow_type?: FlowType;
   user_id?: string;
+  person_tag?: string;
+  counterparty?: string;
+  reference?: string;
+  payment_method?: PaymentMethod;
 
 };
+export const paymentMethods = { unspecified: 'Sin especificar', cash: 'Efectivo', bank_transfer: 'Transferencia', debit_card: 'Tarjeta débito', credit_card: 'Tarjeta crédito', other: 'Otro' };
+export type PaymentMethod = keyof typeof paymentMethods;
 export type FlowType = 'operating' | 'opening_balance' | 'financing' | 'transfer';
 export const flowLabels: Record<FlowType, string> = { operating: 'Ingreso o gasto normal', opening_balance: 'Saldo inicial', financing: 'Préstamo / financiación', transfer: 'Transferencia entre cuentas' };
 export type IncomeSource = { id: string; name: string; context: Context };
@@ -19,7 +26,7 @@ export function defaultSources(): IncomeSource[] {
   return contexts.map(context => ({ id: crypto.randomUUID(), name: context === 'Personal' ? 'Otro ingreso' : context, context }));
 }
 export function normalizeTransaction(t: Transaction, sources: IncomeSource[] = []): Transaction {
-  return { ...t, competence_date: t.competence_date || t.date, flow_type: t.flow_type || 'operating', source_id: t.kind === 'income' ? t.source_id || sources.find(s => s.context === t.context)?.id || null : null };
+  return { ...t, person_tag: t.person_tag || personTag, counterparty: t.counterparty || '', reference: t.reference || '', payment_method: t.payment_method || 'unspecified', competence_date: t.competence_date || t.date, flow_type: t.flow_type || 'operating', source_id: t.kind === 'income' ? t.source_id || sources.find(s => s.context === t.context)?.id || null : null };
 }
 export function spendingByCategory(rows: Transaction[], month: string, context: string = 'Todos') {
   const totals = new Map<string, number>();
@@ -36,6 +43,9 @@ export function today() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 export function validateTransaction(t: Transaction): string | null {
+  if (t.person_tag && !/^[a-z][a-z0-9_]{0,39}$/.test(t.person_tag)) return 'Selecciona una persona válida.';
+  if ((t.counterparty?.length || 0) > 120 || (t.reference?.length || 0) > 120) return 'La referencia y el tercero admiten hasta 120 caracteres.';
+  if (t.payment_method && !Object.hasOwn(paymentMethods, t.payment_method)) return 'Selecciona un medio de pago válido.';
   if (t.kind !== 'income' && t.kind !== 'expense') return 'Selecciona un tipo válido.';
   if (t.flow_type && !Object.hasOwn(flowLabels, t.flow_type)) return 'Selecciona un tipo de movimiento válido.';
   if (t.competence_date && (!/^\d{4}-\d{2}-\d{2}$/.test(t.competence_date) || Number.isNaN(Date.parse(t.competence_date)) || new Date(`${t.competence_date}T12:00:00Z`).toISOString().slice(0, 10) !== t.competence_date)) return 'Selecciona una fecha de periodo válida.';
@@ -77,11 +87,11 @@ export function demoTransactions(): Transaction[] {
 }
 export function exportCsv(rows: Transaction[], sources: IncomeSource[] = [], userId = 'demo') {
   const cell = (value: string | number) => `"${(typeof value === 'string' ? value.replace(/^[\s]*[=+@\-]/, "'$&") : String(value)).replaceAll('"', '""')}"`;
-  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto COP', 'Flujo neto COP', 'Separado COP', 'Pagado con reserva'];
+  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto COP', 'Flujo neto COP', 'Separado COP', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago'];
   const data = rows.map(row => {
     const t = normalizeTransaction(row);
     const source = sources.find(s => s.id === t.source_id);
-    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' ? source?.name || t.context : '', t.category, t.description, 'COP', t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No'];
+    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' ? source?.name || t.context : '', t.category, t.description, 'COP', t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!]];
   });
   return '\uFEFF' + [headers, ...data].map(row => row.map(cell).join(';')).join('\r\n');
 }

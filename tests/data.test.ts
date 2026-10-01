@@ -2,17 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readSources, readTransactions } from '../src/data';
 import { supabase } from '../src/supabase';
 vi.mock('../src/supabase', () => ({ supabase: { from: vi.fn() } }));
-const calls: { table: string; owner: string; from: number; to: number }[] = [];
+const calls: { table: string; owner: string; person: string; from: number; to: number }[] = [];
 function mockRows(table: string, count: number, failAt?: number) {
   vi.mocked(supabase!.from).mockImplementation((actualTable: string) => {
     let owner = '';
+    let person = '';
     const query = {
       select: vi.fn().mockReturnThis(),
-      eq: vi.fn((column: string, value: string) => { expect(column).toBe('user_id'); owner = value; return query; }),
+      eq: vi.fn((column: string, value: string) => { if (column === 'user_id') owner = value; else { expect(column).toBe('person_tag'); person = value; } return query; }),
       order: vi.fn().mockReturnThis(),
       range: vi.fn(async (from: number, to: number) => {
         expect(actualTable).toBe(table);
-        calls.push({ table: actualTable, owner, from, to });
+        calls.push({ table: actualTable, owner, person, from, to });
         if (from === failAt) return { data: null, error: new Error('connection lost') };
         const data = Array.from({ length: Math.min(500, Math.max(0, count - from)) }, (_, i) => table === 'income_sources'
           ? { id: `${from + i}`, name: `Fuente ${from + i}`, context: 'Personal' }
@@ -32,7 +33,7 @@ describe('Lectura completa para CSV', () => {
     expect(rows[1000].id).toBe('1000');
     expect(rows[0].competence_date).toBe('2026-10-01');
     expect(calls.map(c => c.from)).toEqual([0, 500, 1000]);
-    expect(calls.every(c => c.owner === 'persona-1')).toBe(true);
+    expect(calls.every(c => c.owner === 'persona-1' && c.person === 'natalia')).toBe(true);
   });
   it('también pagina las fuentes y conserva sus IDs', async () => {
     mockRows('income_sources', 501);
