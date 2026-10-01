@@ -133,7 +133,7 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las siete migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las ocho migraciones están aplicadas, con personas, trazabilidad, notas históricas, secuencia de eventos y comprobantes de importación Gmail. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
 
 Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
@@ -184,3 +184,24 @@ El CSV exporta moneda y monto nativo. `movements_export` usa `amount_native`, `c
 ## Registro unificado
 
 El concepto se escribe directamente en Entrada/Salida y se guarda en `transactions.description`, con hasta 4000 caracteres y saltos de línea. La sección independiente de notas se retiró de la pantalla; las notas previas y su historial siguen en Supabase para consultar en análisis. Los totales muestran ingresos del mes en verde y gastos del mes en rojo por moneda. Lista/Tabla permite consultar fecha, concepto, tipo, moneda y monto; la tabla contiene todos los movimientos de la cuenta y permite corregirlos desde el concepto.
+
+
+## Importación de Gmail para Diego
+
+El botón **Revisar Gmail** abre la autorización de Google y busca avisos del día elegido en horario de Colombia. Los montos ambiguos y las monedas no explícitas requieren revisión. Cada aviso permite corregir tipo, monto, COP/USD, fecha, concepto, categoría y fuente; guardar exige una confirmación por movimiento. Los correos de facturas, rechazos o pagos pendientes nunca se registran solos. No interpreta adjuntos ni reemplaza un extracto bancario. La búsqueda inicial cubre frases frecuentes de avisos de compras/pagos/transferencias y algunos bancos colombianos; se ajustará con ejemplos reales. Hay un límite visible de 500 correos por consulta.
+
+Google concede lectura con `gmail.readonly` mediante Google Identity Services, modelo de token en navegador. El token existe solo en memoria durante la sesión: no se guarda en Supabase, localStorage, Git ni Vercel. Al vencer o recargar hay que volver a conectar; no existe sincronización automática. El botón Desconectar revoca el permiso. La conexión Gmail de Codex es independiente de esta conexión de la app.
+
+Para habilitarlo:
+
+1. Crear un proyecto propio en [Google Cloud](https://console.cloud.google.com/projectcreate) y habilitar [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com).
+2. En [Google Auth Platform](https://console.cloud.google.com/auth/overview), completar Branding y elegir audiencia External, estado Testing. Agregar el correo personal de Diego como usuario de prueba y el permiso `https://www.googleapis.com/auth/gmail.readonly` en Data Access.
+3. Crear un cliente OAuth tipo **Web application** en Clients. Añadir estos **Authorized JavaScript origins**: `https://nts-financial.vercel.app` y `http://localhost:5173`. No requiere redirect URI ni secreto de cliente para este flujo con popup. Las URLs de preview necesitan su propio origen autorizado.
+4. Configurar `VITE_GOOGLE_GMAIL_CLIENT_ID` (ID público que termina en `.apps.googleusercontent.com`) y `VITE_GOOGLE_GMAIL_ACCOUNT` (cuenta personal esperada) en `.env.local` y Vercel. Reiniciar local o desplegar de nuevo para incorporar cambios. Nunca usar una contraseña de Gmail ni copiar un client secret al frontend.
+5. Entrar como Diego, pulsar Revisar Gmail, escoger la cuenta configurada y autorizar lectura. La cuenta se comprueba antes de buscar correos. En modo Testing puede requerirse volver a autorizar; la distribución pública con este permiso restringido puede requerir verificación de Google.
+
+La migración `20261001050000_gmail_import.sql` crea `gmail_imports` y la función `import_gmail_movement`. La función permite importar únicamente al usuario de acceso de Diego, valida su fuente y escribe movimiento + comprobante en una sola transacción. La clave única `(user_id, account_email, message_id)` evita duplicados incluso con dos dispositivos o al repetir después de un fallo de red. El comprobante permanece si se borra el movimiento: conserva cuenta, ID del correo, remitente, asunto, fecha de recepción, fragmento original (hasta 6000 caracteres), versión del parser y relación al movimiento. Las correcciones del movimiento siguen en `change_history`; los comprobantes son solo de lectura para el cliente. No se almacena el buzón completo ni los adjuntos.
+
+Un movimiento registrado manualmente con igual fecha, moneda, monto y tipo muestra una advertencia; confirmar otro correo que representa la misma operación sigue requiriendo criterio del usuario. Para transferencias propias se puede marcar el tipo correspondiente y registrar ambos lados; así el resultado contable no las considera ganancias o gastos.
+
+Referencias: [modelo de token](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [configuración del ID](https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid), [filtros y fechas de Gmail](https://developers.google.com/workspace/gmail/api/guides/filtering).
