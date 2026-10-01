@@ -135,7 +135,7 @@ App: https://nts-financial.vercel.app
 
 Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Ambas migraciones están aplicadas. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. La clave compartida de esta versión está incluida en el cliente según lo solicitado.
 
-La primera publicación se hizo por CLI. Para activar los siguientes despliegues por push, conecta GitHub en https://vercel.com/account/settings/authentication y después ejecuta `vercel git connect https://github.com/diegoavellanedat17/nts-financial --scope diego-personal --yes`. CI de GitHub ya comprueba cada push.
+Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
 ## Acceso rápido
 
