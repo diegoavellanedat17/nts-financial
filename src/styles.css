@@ -16,3 +16,26 @@
 .trm-note{font-size:11px;line-height:1.8;color:var(--muted);margin:14px auto 0;max-width:390px}.trm-note a{display:block;text-decoration:underline;color:var(--green)}.trm-note span{display:block}.trm-note button{background:transparent;color:var(--green);padding:8px;text-decoration:underline}.currency-switch{flex-wrap:wrap}
 
 .login-card .brand-mark{font-family:'DM Sans',sans-serif;font-size:23px;font-weight:700;letter-spacing:-1px;padding:0;margin-bottom:12px}.login-card>p.login-brand-name{font-family:'Manrope',sans-serif;font-size:17px;font-weight:700;color:var(--green);margin-bottom:25px}.daily-brand{font-size:23px;letter-spacing:-.8px}@media(max-width:360px){.daily-brand{font-size:21px}}
+
+.accounts-section { margin: 24px 0; border: 1px solid #dce5d7; border-radius: 14px; padding: 16px; }
+.accounts-toggle,.transfer-toggle { background: none; color: #196a59; font-weight: 600; padding: 8px 0; }
+.transfer-toggle { display:block; margin-top:8px; }
+.account-list { list-style:none;padding:0; }
+.account-list li { display:flex; flex-wrap:wrap; justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #e6ece2; }
+.account-create {display:flex;flex-wrap:wrap;align-items:end;gap:12px;}
+.account-create label {display:grid;gap:6px;flex:1;min-width:100px;}
+.account-create input,.account-create select {width:100%;border:1px solid #dce5d7;border-radius:8px;padding:10px;background:white;}
+.transfer-form {margin-top:16px;}
+.chat-bubble {position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:20px;z-index:20;background:#176c59;color:white;border-radius:50%;width:54px;height:54px;display:grid;place-items:center;box-shadow:0 4px 18px #0002;}
+.finance-chat {position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));width:min(400px,calc(100vw - 32px));max-height:calc(100dvh - 115px);z-index:21;display:flex;flex-direction:column;background:white;border:1px solid #dce5d7;border-radius:16px;box-shadow:0 10px 40px #0002;overflow:hidden;}
+.finance-chat header {display:flex;justify-content:space-between;align-items:center;padding:15px;background:#f1f6ef;}
+.finance-chat header button {background:none;display:grid;place-items:center;}
+.chat-messages {overflow:auto;padding:15px;min-height:100px;}
+.chat-messages p {white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.6;}
+.chat-intro {color:#71816a;}
+.chat-question {background:#edf4e8;padding:10px;border-radius:10px;margin-left:28px;}
+.chat-answer {padding:8px 0;}
+.finance-chat form {display:flex;align-items:end;gap:8px;padding:12px;border-top:1px solid #e6ece2;}
+.finance-chat textarea {min-width:0;flex:1;resize:none;border:1px solid #dce5d7;border-radius:8px;padding:10px;font:inherit;}
+.finance-chat .error {padding:0 12px;}
+.daily-footer {padding-bottom:65px;}

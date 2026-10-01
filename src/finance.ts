@@ -5,6 +5,9 @@ export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros
 export type Currency = 'COP' | 'USD';
 export type Context = typeof contexts[number];
 export type Transaction = {
+  account_id?: string | null;
+  transfer_id?: string | null;
+  transfer_role?: string | null;
   currency?: Currency;
   id: string; date: string; kind: 'income' | 'expense'; amount: number;
   context: Context; category: string; description: string;
@@ -69,8 +72,8 @@ export function validateTransaction(t: Transaction): string | null {
 export function summarize(rows: Transaction[], month: string, currency: Currency = 'COP') {
   const all = rows.filter(t => (t.currency || 'COP') === currency);
   const monthly = all.filter(t => t.date.startsWith(month));
-  const income = sumMoney(monthly.filter(t => t.kind === 'income'), t => t.amount);
-  const expenses = sumMoney(monthly.filter(t => t.kind === 'expense'), t => t.amount);
+  const income = sumMoney(monthly.filter(t => t.kind === 'income' && !['transfer','opening_balance'].includes(t.flow_type || 'operating')), t => t.amount);
+  const expenses = sumMoney(monthly.filter(t => t.kind === 'expense' && !['transfer','opening_balance'].includes(t.flow_type || 'operating')), t => t.amount);
   // Los saldos se acumulan hasta el cierre del mes; las reservas no caducan al cambiar de mes.
   const history = all.filter(t => t.date.slice(0, 7) <= month);
   const cash = sumMoney(history,t => t.kind === 'income' ? t.amount : -t.amount);
@@ -108,11 +111,11 @@ export function demoTransactions(): Transaction[] {
 }
 export function exportCsv(rows: Transaction[], sources: IncomeSource[] = [], userId = 'demo') {
   const cell = (value: string | number) => `"${(typeof value === 'string' ? value.replace(/^[\s]*[=+@\-]/, "'$&") : String(value)).replaceAll('"', '""')}"`;
-  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago'];
+  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago', 'ID cuenta', 'ID transferencia', 'Rol transferencia'];
   const data = rows.map(row => {
     const t = normalizeTransaction(row);
     const source = sources.find(s => s.id === t.source_id);
-    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!]];
+    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.flow_type === 'transfer' ? 'Transferencia' : t.transfer_role === 'fee' ? 'Comisión' : t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' && t.flow_type !== 'transfer' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!], t.account_id || '', t.transfer_id || '', t.transfer_role || ''];
   });
   return '\uFEFF' + [headers, ...data].map(row => row.map(cell).join(';')).join('\r\n');
 }

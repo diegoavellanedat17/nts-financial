@@ -5,7 +5,7 @@ export async function readTransactions(userId: string, personTag = defaultPerson
   if (!supabase) throw new Error('Supabase no está conectado.');
   const rows: Transaction[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from('transactions').select('id,user_id,date,competence_date,flow_type,source_id,kind,amount,context,category,description,reserved,from_reserve,currency,person_tag,counterparty,reference,payment_method').eq('user_id', userId).eq('person_tag', personTag).order('date', { ascending: false }).order('id').range(offset, offset + 499);
+    const { data, error } = await supabase.from('transactions').select('account_id,transfer_id,transfer_role,id,user_id,date,competence_date,flow_type,source_id,kind,amount,context,category,description,reserved,from_reserve,currency,person_tag,counterparty,reference,payment_method').eq('user_id', userId).eq('person_tag', personTag).order('date', { ascending: false }).order('id').range(offset, offset + 499);
     if (error) throw error;
     rows.push(...data.map(t => normalizeTransaction(t as Transaction)));
     if (data.length < 500) return rows;

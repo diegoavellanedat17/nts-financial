@@ -17,14 +17,17 @@ try{
  const source={id:'33333333-3333-4333-8333-333333333333',name:'Otro ingreso',context:'Personal'};
  const user={id:uid,email:'diego-access@nts-financial.example.com',aud:'authenticated',role:'authenticated',created_at:new Date().toISOString(),app_metadata:{provider:'email'},user_metadata:{}};
  const jwt=`${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:uid,exp:Math.floor(Date.now()/1000)+3600,iat:Math.floor(Date.now()/1000),aud:'authenticated',role:'authenticated'})).toString('base64url')}.test`;
- const movements=[];const receipts=[];let rpcCalls=0;
+ const accounts=[];const chats=[];const movements=[];const receipts=[];let rpcCalls=0;
  await page.route('https://gmail-test.supabase.co/**',async route=>{
   const url=new URL(route.request().url());
   let data=[];
   if(url.pathname==='/auth/v1/token')data={access_token:jwt,refresh_token:'test-refresh',expires_in:3600,token_type:'bearer',user};
   else if(url.pathname==='/auth/v1/user')data=user;
   else if(url.pathname==='/rest/v1/income_sources')data=[source];
-  else if(url.pathname==='/rest/v1/transactions')data=movements;
+  else if(url.pathname==='/rest/v1/transactions'){ if(route.request().method()==='POST'){const incoming=route.request().postDataJSON();const index=movements.findIndex(m=>m.id===incoming.id);if(index>=0)movements[index]=incoming;else movements.push(incoming);}data=movements;}
+  else if(url.pathname==='/rest/v1/accounts'){if(route.request().method()==='POST')accounts.push(route.request().postDataJSON());data=accounts;}
+  else if(url.pathname==='/rest/v1/finance_chat')data=[...chats].reverse();
+  else if(url.pathname==='/rest/v1/rpc/create_transfer'){const p=route.request().postDataJSON();const a=accounts.find(a=>a.id===p.p_from),b=accounts.find(a=>a.id===p.p_to);for(const [role,kind,amount,currency,account_id] of [['sent','expense',p.p_sent-p.p_fee,a.currency,a.id],['received','income',p.p_received,b.currency,b.id],['fee','expense',p.p_fee,a.currency,a.id]])if(amount>0)movements.push({id:`transfer-${role}`,date:p.p_date,kind,amount,currency,account_id,transfer_id:p.p_id,transfer_role:role,flow_type:role==='fee'?'operating':'transfer',category:role==='fee'?'Servicios':'Otros',context:'Personal',description:role==='fee'?`Comisión: ${p.p_description}`:p.p_description,reserved:0,from_reserve:false,person_tag:'diego'});data=p.p_id;}
   else if(url.pathname==='/rest/v1/gmail_imports')data=receipts;
   else if(url.pathname==='/rest/v1/rpc/import_gmail_movement'){
    rpcCalls++;
@@ -83,6 +86,13 @@ try{
  await page.getByRole('button',{name:'Reintentar TRM'}).waitFor();
  assert.equal(await page.locator('.daily-balance h1').textContent(),'—','No sumar parcialmente sin TRM');
  await page.getByRole('button',{name:'COP',exact:true}).click();assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
+ await page.getByRole('button',{name:'Mis cuentas',exact:false}).click();
+ await page.getByLabel('Nombre de la cuenta').fill('ARQ');await page.getByLabel('Moneda de la cuenta').selectOption('USD');await page.getByRole('button',{name:'Crear cuenta',exact:true}).click();await page.locator('.account-list').getByText('ARQ · USD',{exact:true}).waitFor();
+ await page.getByLabel('Nombre de la cuenta').fill('Bancolombia');await page.getByLabel('Moneda de la cuenta').selectOption('COP');await page.getByRole('button',{name:'Crear cuenta',exact:true}).click();await page.locator('.account-list').getByText('Bancolombia · COP',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Transferencia entre mis cuentas',exact:true}).click();await page.getByLabel('De qué cuenta sale').selectOption(accounts[0].id);await page.getByLabel('A qué cuenta llega').selectOption(accounts[1].id);await page.getByLabel('Total que salió').fill('100');await page.getByLabel('Monto que llegó').fill('330000');await page.getByLabel('Comisión incluida').fill('2');await page.getByRole('button',{name:'Guardar transferencia',exact:true}).click();await page.getByRole('button',{name:'Guardar transferencia',exact:true}).waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'USD',exact:true}).click();assert.match(await page.locator('.income-total').textContent(),/150,25/);assert.match(await page.locator('.expense-total').textContent(),/2,00/);assert.match(await page.locator('.daily-balance h1').textContent(),/50,25/);
+ await page.route('**/api/chat',async route=>{assert.equal(route.request().headers().authorization,`Bearer ${jwt}`);assert.equal(route.request().postDataJSON().question,'¿Cuánto pagué de comisión?');const exchange={id:'test-chat',question:'¿Cuánto pagué de comisión?',answer:'Pagaste 2 USD de comisión en la transferencia de ARQ a Bancolombia.'};chats.push(exchange);await route.fulfill({json:exchange});});
+ await page.getByRole('button',{name:'Abrir asistente de finanzas'}).click();await page.getByLabel('Tu pregunta',{exact:true}).fill('¿Cuánto pagué de comisión?');await page.getByRole('button',{name:'Enviar',exact:true}).click();await page.getByText('Pagaste 2 USD de comisión en la transferencia de ARQ a Bancolombia.',{exact:true}).waitFor();for(const width of [320,375]){await page.setViewportSize({width,height:812});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}await page.screenshot({path:'artifacts/accounts-chat-mobile.png',fullPage:true});await page.getByRole('button',{name:'Cerrar asistente'}).click();
  assert.deepEqual(errors,[]);
  console.log('OK Gmail: cuenta correcta, revisión antes de guardar, COP/USD, referencias, reintento sin duplicados, desconexión y móvil 320/375. APIs simuladas; no se leyeron correos reales.');
 }finally{await browser?.close();server.kill('SIGTERM');}

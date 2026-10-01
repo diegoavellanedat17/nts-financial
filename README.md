@@ -177,7 +177,7 @@ Las cuentas de Natalia y Diego ya están creadas en el proyecto publicado.
 
 Diego usa una vista de Entrada y Salida, con fuentes personales y sin secciones del consultorio. Natalia mantiene la vista del consultorio. Las fuentes históricas se conservan en Supabase; la vista personal ofrece solo las de contexto Personal.
 
-Cada movimiento y nota tiene moneda COP o USD. El selector del saldo muestra una moneda a la vez; los gastos y reservas se calculan por esa moneda. USD admite hasta dos decimales y COP conserva montos enteros. Los registros previos se etiquetan COP. No hay conversión automática ni saldo combinado: una tasa de cambio requerirá una operación explícita en otra etapa.
+Cada movimiento y nota tiene moneda COP o USD. El selector del saldo muestra una moneda a la vez; los gastos y reservas se calculan por esa moneda. USD admite hasta dos decimales y COP conserva montos enteros. Los registros previos se etiquetan COP. Total en COP permite valorar ambas monedas con la TRM vigente, conservando los montos nativos.
 
 El CSV exporta moneda y monto nativo. `movements_export` usa `amount_native`, `cashflow_native` y `reserved_native`; las vistas `person_cashflow_monthly` y `person_pnl_recorded_monthly` agrupan también por moneda. Las vistas legadas con columnas terminadas en `_cop` solo muestran COP. Las consultas de ejemplo respetan esta separación.
 
@@ -202,7 +202,7 @@ Para habilitarlo:
 
 La migración `20261001050000_gmail_import.sql` crea `gmail_imports` y la función `import_gmail_movement`. La función permite importar únicamente al usuario de acceso de Diego, valida su fuente y escribe movimiento + comprobante en una sola transacción. La clave única `(user_id, account_email, message_id)` evita duplicados incluso con dos dispositivos o al repetir después de un fallo de red. El comprobante permanece si se borra el movimiento: conserva cuenta, ID del correo, remitente, asunto, fecha de recepción, fragmento original (hasta 6000 caracteres), versión del parser y relación al movimiento. Las correcciones del movimiento siguen en `change_history`; los comprobantes son solo de lectura para el cliente. No se almacena el buzón completo ni los adjuntos.
 
-Un movimiento registrado manualmente con igual fecha, moneda, monto y tipo muestra una advertencia; confirmar otro correo que representa la misma operación sigue requiriendo criterio del usuario. Para transferencias propias se puede marcar el tipo correspondiente y registrar ambos lados; así el resultado contable no las considera ganancias o gastos.
+Un movimiento registrado manualmente con igual fecha, moneda, monto y tipo muestra una advertencia; confirmar otro correo que representa la misma operación sigue requiriendo criterio del usuario. Para transferencias propias usa el formulario entre cuentas: registra ambos lados y la comisión en una operación atómica. Un aviso de Gmail que corresponda a una transferencia propia debe revisarse y registrarse desde ese formulario, sin importarlo además como ingreso o gasto.
 
 Referencias: [modelo de token](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [configuración del ID](https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid), [filtros y fechas de Gmail](https://developers.google.com/workspace/gmail/api/guides/filtering).
 
@@ -217,3 +217,20 @@ La función requiere `SUPABASE_SERVICE_ROLE_KEY` como variable **solo de servido
 
 
 El nombre visible de la aplicación es **Personal Finance**, incluyendo el título del navegador y el nombre sugerido en iPhone. Diego y Natalia siguen siendo los perfiles separados; el nombre activo aparece debajo de la marca.
+
+
+## Cuentas y transferencias
+
+Mis cuentas crea cuentas COP o USD por perfil. Los movimientos anteriores quedan sin asignar: al corregirlos se puede seleccionar la cuenta de la misma moneda. Los saldos por cuenta suman los movimientos asignados hasta hoy, no representan un extracto conciliado. Un saldo inicial registra únicamente dinero anterior que no esté ya incluido en movimientos registrados. No se inventan saldos ni se reclasifica el historial automáticamente.
+
+La migración `20261001070000_accounts_and_chat.sql` agrega `accounts`, `transfers`, enlaces a los movimientos y sus versiones en `change_history`. Las claves foráneas exigen misma persona, dueño y moneda; RLS impide acceder a otra persona. `create_transfer` escribe salida, entrada y comisión en una transacción. El monto enviado incluye la comisión: principal = enviado − comisión; principal y recepción son transferencias, comisión es gasto operativo en Servicios y `transfer_role=fee`. En una misma moneda recibido = enviado − comisión. En monedas distintas se conserva lo recibido realmente: tipo efectivo = recibido / principal, sin sustituirlo por TRM. No se infieren comisiones por diferencias cambiarias.
+
+Las piernas no admiten edición o eliminación independiente. Para corregir se anula toda la transferencia con `cancel_transfer` y se crea otra; el historial conserva la operación anterior. El CSV y `movements_export` incluyen cuenta, transferencia y rol. Los ingresos/gastos visibles excluyen transferencias y saldos iniciales; el disponible incluye sus efectos nativos. Las cuentas pueden quedar negativas si faltan movimientos asignados; no hay bloqueo bancario por saldo.
+
+## Asistente por persona
+
+El globo abre un chat responsive. `POST /api/chat` valida el JWT con Supabase y obtiene persona del correo de la sesión; ignora cualquier persona indicada por el cliente. Lee con ese JWT y RLS, calcula agregados completos por moneda, mes de pago, categoría, espacio y fuente; incluye saldos de cuentas, comisiones y hasta 200 movimientos recientes, con cobertura explícita. Incluye TRM únicamente si ya hay una tasa válida del día guardada. No lee el buzón ni proveedores en vivo, no ejecuta pagos ni modifica movimientos.
+
+Configurar `OPENAI_API_KEY` **solo en servidor** en `.env.local` y en Vercel → Settings → Environment Variables → Production/Preview. Obtenerla en https://platform.openai.com/api-keys con una cuenta API con saldo. No compartirla en chat ni usar prefijo VITE_. `OPENAI_MODEL` es opcional (por defecto `gpt-5-mini`). Reiniciar local o redesplegar después de agregar variables. Sin clave, el globo indica que falta activación; no inventa respuestas.
+
+La integración usa [Responses API](https://developers.openai.com/api/docs/guides/text), `store:false` y un historial acotado por perfil. Esto desactiva el almacenamiento de Responses, no equivale a retención cero del proveedor. Los registros del perfil se envían a OpenAI para responder la consulta. Supabase conserva pregunta, respuesta, modelo, fecha y el snapshot enviado en `finance_chat`; el perfil puede consultar su propio historial. Los snapshots son del contexto utilizado, no una copia del buzón. Los conceptos se tratan como datos no confiables, sin ejecutar instrucciones contenidas en ellos. Hay un límite básico de cinco consultas guardadas por minuto por usuario; no es una cuota de facturación ni un límite estricto concurrente. Los detalles anteriores a los 200 últimos requieren una consulta más específica en una siguiente iteración; los agregados sí cubren todos los registros.
