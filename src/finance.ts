@@ -60,7 +60,7 @@ export function validateTransaction(t: Transaction): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t.date) || Number.isNaN(Date.parse(t.date)) || new Date(`${t.date}T12:00:00Z`).toISOString().slice(0, 10) !== t.date) return 'Selecciona una fecha válida.';
   if (!contexts.includes(t.context)) return 'Selecciona un origen válido.';
   if (!(t.kind === 'income' ? incomeCategories : expenseCategories).some(c => c === t.category)) return 'Selecciona una categoría válida.';
-  if (t.description.trim().length === 0 || t.description.length > 120) return 'Escribe una descripción de máximo 120 caracteres.';
+  if (t.description.trim().length === 0 || t.description.length > 4000) return 'Escribe una concepto de máximo 4000 caracteres.';
   if (t.kind === 'expense' && t.reserved !== 0) return 'Solo puedes separar dinero de un ingreso.';
   if (t.kind === 'income' && t.from_reserve) return 'Solo un gasto puede pagarse con dinero separado.';
   if (t.context === 'Personal' && (t.reserved > 0 || t.from_reserve)) return 'El dinero para tratamientos pertenece a los espacios de trabajo.';

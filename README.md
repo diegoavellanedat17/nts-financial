@@ -133,7 +133,7 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las seis migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las siete migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
 
 Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
@@ -161,9 +161,9 @@ Los reportes actuales cubren movimientos registrados. Todavía no hay agenda de 
 
 La primera etapa es registrar movimientos reales durante 10 días, sin exigir todos los campos opcionales. Al terminar se revisan fuentes, conceptos, espacios, fechas y registros incompletos para decidir la siguiente mejora a partir de datos. No hay un análisis programado: se inicia cuando el usuario lo solicita.
 
-## Notas libres
+## Notas históricas
 
-La sección «Notas, tal como pasó» guarda texto crudo (incluidos saltos de línea), persona y fechas en `notes`. Se puede corregir y eliminar; los cambios quedan en `change_history`. Las notas no crean movimientos ni cambian saldos. Para analizarlas se leen junto con los movimientos del mismo periodo y persona, sin contar dos veces montos mencionados en el texto. La demo las conserva en su propio almacenamiento del navegador. La migración `20261001020000_raw_notes.sql` agrega la tabla y sus políticas.
+La tabla `notes` conserva las notas capturadas en la etapa anterior, con persona, fechas e historial. La sección separada se retiró de la pantalla: los conceptos nuevos se escriben en Entrada/Salida y quedan en `transactions.description`. Para análisis se pueden consultar notas históricas junto con los movimientos, evitando contar dos veces montos mencionados en el texto.
 
 ## Dos accesos y análisis de notas
 
@@ -175,8 +175,12 @@ Las cuentas de Natalia y Diego ya están creadas en el proyecto publicado.
 
 ## Vista personal y monedas
 
-Diego usa una vista de Entrada, Salida y Notas, con fuentes personales y sin secciones del consultorio. Natalia mantiene la vista del consultorio. Las fuentes históricas se conservan en Supabase; la vista personal ofrece solo las de contexto Personal.
+Diego usa una vista de Entrada y Salida, con fuentes personales y sin secciones del consultorio. Natalia mantiene la vista del consultorio. Las fuentes históricas se conservan en Supabase; la vista personal ofrece solo las de contexto Personal.
 
 Cada movimiento y nota tiene moneda COP o USD. El selector del saldo muestra una moneda a la vez; los gastos y reservas se calculan por esa moneda. USD admite hasta dos decimales y COP conserva montos enteros. Los registros previos se etiquetan COP. No hay conversión automática ni saldo combinado: una tasa de cambio requerirá una operación explícita en otra etapa.
 
 El CSV exporta moneda y monto nativo. `movements_export` usa `amount_native`, `cashflow_native` y `reserved_native`; las vistas `person_cashflow_monthly` y `person_pnl_recorded_monthly` agrupan también por moneda. Las vistas legadas con columnas terminadas en `_cop` solo muestran COP. Las consultas de ejemplo respetan esta separación.
+
+## Registro unificado
+
+El concepto se escribe directamente en Entrada/Salida y se guarda en `transactions.description`, con hasta 4000 caracteres y saltos de línea. La sección independiente de notas se retiró de la pantalla; las notas previas y su historial siguen en Supabase para consultar en análisis. Los totales muestran ingresos del mes en verde y gastos del mes en rojo por moneda. Lista/Tabla permite consultar fecha, concepto, tipo, moneda y monto; la tabla contiene todos los movimientos de la cuenta y permite corregirlos desde el concepto.

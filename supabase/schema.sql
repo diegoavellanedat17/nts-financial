@@ -303,3 +303,9 @@ create view public.person_pnl_recorded_monthly with (security_invoker=true) as
 revoke all on public.movements_export,public.cashflow_monthly,public.pnl_recorded_monthly,public.spending_monthly,public.person_cashflow_monthly,public.person_pnl_recorded_monthly from anon;
 grant select on public.movements_export,public.cashflow_monthly,public.pnl_recorded_monthly,public.spending_monthly,public.person_cashflow_monthly,public.person_pnl_recorded_monthly to authenticated;
 commit;
+
+-- Conceptos libres dentro de cada movimiento
+begin;
+alter table public.transactions drop constraint transactions_description_check;
+alter table public.transactions add constraint transactions_description_check check(char_length(trim(description)) between 1 and 4000);
+commit;
