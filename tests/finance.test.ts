@@ -38,7 +38,7 @@ describe('Validación y exportación', () => {
   it('escapa comillas y evita fórmulas en un CSV', () => {
     const csv = exportCsv([{ ...income, description: '=1+1;"test"' }]);
     expect(csv).toContain('"\'=1+1;""test"""');
-    expect(csv).toContain('Monto COP');
+    expect(csv).toContain('Monto');
   });
 });
 
@@ -66,4 +66,20 @@ describe('Desglose de gastos', () => {
     const result = spendingByCategory([expense, personal, { ...personal, flow_type: 'financing' }, { ...personal, flow_type: 'transfer' }, { ...personal, date: '2026-09-01' }], '2026-10', 'Personal');
     expect(result).toEqual([{ category: 'Alimentación', amount: 30000 }]);
   });
+});
+
+describe('COP y USD', () => {
+ it('separa monedas, mantiene centavos y no usa reservas de otra moneda', () => {
+  const dollars: Transaction = { ...income,currency:'USD',amount:0.3,reserved:0.1 };
+  const payment: Transaction = { ...expense,currency:'USD',amount:0.1 };
+  expect(summarize([income,dollars,payment],'2026-10','COP').cash).toBe(1000000);
+  const usd=summarize([income,dollars,payment],'2026-10','USD');
+  expect(usd.cash).toBe(0.2);expect(usd.available).toBe(0.2);expect(usd.reserved).toBe(0);
+  expect(validateTransaction(dollars)).toBeNull();
+  expect(validateTransaction({...dollars,amount:0.001,reserved:0})).not.toBeNull();
+ });
+ it('exporta moneda y monto nativo sin convertirlos a COP', () => {
+  const csv=exportCsv([{...income,currency:'USD',amount:125.5,reserved:0}]);
+  expect(csv).toContain('"USD"');expect(csv).toContain('"125.5"');expect(csv).not.toContain('Monto COP');
+ });
 });

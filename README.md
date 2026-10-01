@@ -1,6 +1,6 @@
 # Natalia · Finanzas con calma
 
-Primera versión de una app de finanzas personales y del consultorio. React + TypeScript + Vite, con Supabase Auth/Postgres y despliegue en Vercel. Moneda: COP.
+Primera versión de una app de finanzas personales y del consultorio. React + TypeScript + Vite, con Supabase Auth/Postgres y despliegue en Vercel. Monedas: COP y USD.
 
 ## Usar en local
 
@@ -133,7 +133,7 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las cinco migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Las seis migraciones están aplicadas, con personas, trazabilidad, notas libres y secuencia de eventos. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. Las claves de acceso de esta versión están incluidas en el cliente según lo solicitado.
 
 Vercel está conectado a `diegoavellanedat17/nts-financial`. Cada push a `main` publica automáticamente la app en https://nts-financial.vercel.app; guardar cambios locales solo actualiza el servidor local. CI de GitHub comprueba cada push por separado. Las migraciones de Supabase se aplican con `supabase db push` y no forman parte del despliegue del frontend.
 
@@ -172,3 +172,11 @@ Natalia entra con `1357955` y Diego con `123456`. Cada clave inicia una cuenta d
 Las notas pueden explicar montos, origen, destino/cuenta, fechas y dudas con texto libre. Primero se analiza lo escrito. En una etapa posterior, las reglas acordadas podrán convertir patrones repetidos en registros estructurados: la nota original se conserva, cada resultado debe referenciarla y se debe impedir registrar dos veces la misma extracción. Esa conversión todavía no se ejecuta automáticamente y no modifica saldos en esta versión.
 
 Las cuentas de Natalia y Diego ya están creadas en el proyecto publicado.
+
+## Vista personal y monedas
+
+Diego usa una vista de Entrada, Salida y Notas, con fuentes personales y sin secciones del consultorio. Natalia mantiene la vista del consultorio. Las fuentes históricas se conservan en Supabase; la vista personal ofrece solo las de contexto Personal.
+
+Cada movimiento y nota tiene moneda COP o USD. El selector del saldo muestra una moneda a la vez; los gastos y reservas se calculan por esa moneda. USD admite hasta dos decimales y COP conserva montos enteros. Los registros previos se etiquetan COP. No hay conversión automática ni saldo combinado: una tasa de cambio requerirá una operación explícita en otra etapa.
+
+El CSV exporta moneda y monto nativo. `movements_export` usa `amount_native`, `cashflow_native` y `reserved_native`; las vistas `person_cashflow_monthly` y `person_pnl_recorded_monthly` agrupan también por moneda. Las vistas legadas con columnas terminadas en `_cop` solo muestran COP. Las consultas de ejemplo respetan esta separación.

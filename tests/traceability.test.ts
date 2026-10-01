@@ -43,6 +43,13 @@ it('conserva versiones al corregir/eliminar, separa tags y protege el historial'
   expect(noteHistory.rows.map(x=>x.operation)).toEqual(['INSERT','UPDATE','DELETE']);
   expect(noteHistory.rows[1].before_data?.body).toBe(text);
   expect(noteHistory.rows[2].before_data?.body).toBe('Corregida');
+  await db.query(`insert into public.transactions(id,user_id,person_tag,date,kind,amount,context,category,description,currency) values (gen_random_uuid(),$1,'diego','2026-10-01','income',12.35,'Personal','Otros','USD','USD')`,[user]);
+  await expect(db.query(`insert into public.transactions(id,user_id,date,kind,amount,context,category,description,currency) values (gen_random_uuid(),$1,'2026-10-01','income',12.351,'Personal','Otros','USD','USD')`,[user])).rejects.toThrow();
+  await expect(db.query(`insert into public.transactions(id,user_id,date,kind,amount,context,category,description,currency) values (gen_random_uuid(),$1,'2026-10-01','income',12.35,'Personal','Otros','COP','COP')`,[user])).rejects.toThrow();
+  const usd=await db.query<{currency:string,received_amount:string}>(`select currency,received_amount::text from public.person_cashflow_monthly where currency='USD'`);
+  expect(usd.rows).toEqual([{currency:'USD',received_amount:'12.35'}]);
+  const legacy=await db.query('select * from public.cashflow_monthly');expect(legacy.rows).toHaveLength(0);
+
 
  } finally {await db.close();}
 },20000);
