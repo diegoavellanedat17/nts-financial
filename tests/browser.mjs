@@ -1,3 +1,4 @@
+process.on('uncaughtExceptionMonitor', error => console.error('::error::' + String(error.stack || error).slice(0, 10000).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D')));
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch();
