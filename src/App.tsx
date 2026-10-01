@@ -6,28 +6,38 @@ import { supabase, supabaseConfigError } from './supabase';
 import { loadSources, readSources, readTransactions } from './data';
 
 const STORAGE = 'natalia-finances-v1';
+const ACCESS_CODE = '1357955';
+const ACCESS_EMAIL = 'natalia-access@nts-financial.example.com';
+const LOCAL_ACCESS = 'natalia-access-v1';
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} onClose={onClose} aria-labelledby="modal-title"><div className="modal-header"><h2 id="modal-title">{title}</h2><button className="icon-button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button></div>{children}</dialog>;
 }
-function Login() {
-  const [email, setEmail] = useState('');
+function Login({ onLocalAccess }: { onLocalAccess: () => void }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function submit(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setMessage('');
+    e.preventDefault(); setMessage('');
+    if (password !== ACCESS_CODE) { setMessage('Esa clave no es correcta. Inténtalo de nuevo.'); return; }
+    setBusy(true);
     try {
-      const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) setMessage('No pudimos entrar. Revisa tu correo y contraseña.');
+      if (supabase) {
+        const { error } = await supabase.auth.signInWithPassword({ email: ACCESS_EMAIL, password });
+        if (error) setMessage('No pudimos entrar. Inténtalo de nuevo.');
+      } else {
+        localStorage.setItem(LOCAL_ACCESS, 'granted');
+        onLocalAccess();
+      }
     } catch { setMessage('No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'); }
     finally { setBusy(false); }
   }
-  return <main className="login-page"><div className="login-card"><div className="brand-mark">n<span>•</span></div><span className="eyebrow">UN POCO MÁS DE CLARIDAD</span><h1>Tu dinero,<br /><em>en orden.</em></h1><p>Un espacio para cuidar tus finanzas y las de tu consultorio. Un día a la vez.</p><form onSubmit={submit}><label>Tu correo<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="natalia@correo.com" autoComplete="email" /></label><label>Contraseña<input type="password" required value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" /></label><button className="primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}<ArrowRight size={18} /></button></form><p role="status" className="login-message">{message}</p><small><ShieldCheck size={15} /> Solo tú puedes ver tus registros.</small></div></main>;
+  return <main className="login-page"><div className="login-card"><div className="brand-mark">n<span>•</span></div><span className="eyebrow">UN POCO MÁS DE CLARIDAD</span><h1>Tu dinero,<br /><em>en orden.</em></h1><p>Un espacio para cuidar tus finanzas y las de tu consultorio. Un día a la vez.</p><form onSubmit={submit}><label>Clave de acceso<input type="password" inputMode="numeric" required value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" /></label><button className="primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}<ArrowRight size={18} /></button></form><p role="status" className="login-message">{message}</p><small><ShieldCheck size={15} /> Recordaremos tu acceso en este navegador.</small></div></main>;
 }
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [localAccess, setLocalAccess] = useState(() => localStorage.getItem(LOCAL_ACCESS) === 'granted');
   const [loading, setLoading] = useState(!!supabase);
   const [authError, setAuthError] = useState('');
   useEffect(() => {
@@ -42,7 +52,7 @@ export default function App() {
   if (supabaseConfigError) return <div className="loading" role="alert">{supabaseConfigError}</div>;
   if (loading) return <div className="loading">Preparando tu espacio…</div>;
   if (authError) return <div className="loading" role="alert">{authError}<button onClick={() => window.location.reload()}>Reintentar</button></div>;
-  if (supabase && !session) return <Login />;
+  if (supabase ? !session : !localAccess) return <Login onLocalAccess={() => setLocalAccess(true)} />;
   return <Dashboard key={session?.user.id || 'demo'} userId={session?.user.id} />;
 }
 function Dashboard({ userId }: { userId?: string }) {

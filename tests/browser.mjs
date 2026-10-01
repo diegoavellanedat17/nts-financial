@@ -6,6 +6,11 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.APP_URL || 'http://localhost:5173');
+  await page.getByLabel('Clave de acceso').fill('0000000');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.getByText('Esa clave no es correcta. Inténtalo de nuevo.').waitFor();
+  await page.getByLabel('Clave de acceso').fill('1357955');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('heading', { name: '¿Cómo va el consultorio?' }).waitFor();
   assert.equal(await page.getByRole('navigation').count(), 0, 'Una sola pantalla sin navegación de dashboard');
   await page.screenshot({ path: 'artifacts/desktop.png', fullPage: true });

@@ -47,7 +47,7 @@ La migración de almacenamiento y el esquema de Supabase conservan los movimient
 
 1. Crea un proyecto Supabase.
 2. Para un proyecto nuevo, ejecuta `supabase/schema.sql` una sola vez en el SQL Editor. Si ya ejecutaste la versión anterior, aplica solamente `supabase/migrations/20261001000000_reporting_foundation.sql`. Crea las tablas y políticas RLS por usuario; la llave pública no permite leer registros de otros usuarios.
-3. En Authentication → Users, crea la cuenta de Natalia (y de cada persona que deba tener su propio espacio) con correo, contraseña y correo confirmado. No hay registro público. La app usa `signInWithPassword`; no requiere un proveedor SMTP para entrar.
+3. En Authentication → Users, crea una cuenta compartida con correo `natalia-access@nts-financial.example.com`, clave `1357955` y correo confirmado. La pantalla solo solicita la clave; `signInWithPassword` valida el acceso contra Supabase. No hay registro público ni envío de correos.
 4. En Authentication → URL Configuration, configura Site URL y Redirect URLs con `http://localhost:5173` y después con el dominio de Vercel. Estos dominios quedan preparados para futuros flujos de recuperación de cuenta.
 5. Copia `.env.example` a `.env.local` y completa `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` con la URL del proyecto y su llave pública/publishable. Nunca uses una llave secreta o service_role.
 6. Reinicia `npm run dev`. Aparecerá el acceso por correo y el espacio empezará vacío.
@@ -125,7 +125,7 @@ npx supabase@2.119.0 db push
 
 Esto requiere acceso a la cuenta y contraseña de la base cuando la CLI la solicite. Las migraciones incluyen el esquema inicial y la base de reportes. Usa `schema.sql` o las migraciones de CLI, no ambos contra la misma base nueva. Si el proyecto ya tiene tablas creadas manualmente, revisa su esquema y alinea el historial de migraciones antes de hacer `db push`.
 
-Configura en Vercel `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` para Production y los entornos de Preview que vayas a usar. En Supabase Auth configura el dominio definitivo como Site URL y Redirect URL, y crea la cuenta de Natalia con correo confirmado y contraseña. El acceso con correo y contraseña es obligatorio cuando Supabase está conectado. Los registros de demo del navegador no se transfieren automáticamente a producción.
+Configura en Vercel `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` para Production y los entornos de Preview que vayas a usar. En Supabase Auth configura el dominio definitivo como Site URL y Redirect URL, y crea la cuenta de Natalia compartida según el paso 3 de Conectar Supabase. El acceso con clave es obligatorio cuando Supabase está conectado. Los registros de demo del navegador no se transfieren automáticamente a producción.
 
 Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invitada, recarga y confirma desde otro dispositivo que persisten. La conexión Git publica el frontend; los cambios futuros de base de datos se aplican con migraciones antes de publicar un frontend que los necesite.
 
@@ -133,6 +133,12 @@ Después de publicar, prueba un ingreso y un gasto de prueba con la cuenta invit
 
 App: https://nts-financial.vercel.app
 
-Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Ambas migraciones están aplicadas. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las contraseñas y claves privadas nunca se guardan en Git.
+Supabase: proyecto `taprvieqmbnbqlatcwdu` (`nts-financial`), organización independiente Natalia Finanzas, región us-east-1. Ambas migraciones están aplicadas. Las variables públicas están configuradas en Vercel para Production y Preview. El registro público está deshabilitado y las cuentas se habilitan administrativamente. Las claves administrativas de Supabase nunca se guardan en Git. La clave compartida de esta versión está incluida en el cliente según lo solicitado.
 
 La primera publicación se hizo por CLI. Para activar los siguientes despliegues por push, conecta GitHub en https://vercel.com/account/settings/authentication y después ejecuta `vercel git connect https://github.com/diegoavellanedat17/nts-financial --scope diego-personal --yes`. CI de GitHub ya comprueba cada push.
+
+## Acceso rápido
+
+La clave fija solicitada para esta versión es `1357955`. La cuenta compartida ya está creada en el proyecto publicado: todos los dispositivos que entren con esa clave consultan los mismos movimientos de Natalia. Supabase conserva y renueva la sesión en el navegador hasta cerrar sesión o borrar sus datos. La demo local también recuerda el acceso.
+
+Esta clave está incluida en el código del cliente por decisión de esta versión; cualquiera con acceso al código o la clave puede entrar al espacio compartido. Las políticas RLS siguen exigiendo una sesión válida de Supabase. Los registros de otras cuentas, si existen, no se trasladan ni eliminan.
