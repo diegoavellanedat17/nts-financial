@@ -181,3 +181,12 @@
 .money-input input:focus{outline:none;box-shadow:none}
 .quick-amount .money-input:focus-within{outline:none}
 .gmail-open{min-height:44px}
+
+.app-login-logo{display:block;width:78px;height:97px;object-fit:contain;margin-bottom:16px}
+.daily-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.app-header-logo{display:block;width:36px;height:46px;object-fit:contain;flex-shrink:0;mix-blend-mode:multiply}
+.daily-brand>span.daily-brand-copy{font:inherit;color:inherit;margin:0;min-width:0}
+.daily-brand-copy strong{display:block;font:inherit}
+.daily-brand-copy small{display:block;font:400 12px 'DM Sans',sans-serif;color:#8b9983;letter-spacing:0;margin-top:4px;line-height:1.5}
+@media(max-width:600px){.daily-brand-copy small{font-size:11px}}
+@media(max-width:360px){.daily-brand{font-size:18px;gap:8px}.app-header-logo{width:30px;height:38px}}
