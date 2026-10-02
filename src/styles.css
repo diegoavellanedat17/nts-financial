@@ -174,3 +174,5 @@
 .reconciliation-totals{display:flex;flex-wrap:wrap;gap:20px;margin:15px 0}
 .reconciliation-totals>span{font-size:11px;color:var(--muted)}
 .reconciliation-totals strong{display:block;font-size:16px;color:var(--green);margin-top:5px;overflow-wrap:anywhere}
+
+.money-input>span::before{content:attr(data-symbol)}
