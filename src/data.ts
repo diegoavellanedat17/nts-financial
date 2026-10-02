@@ -1,6 +1,6 @@
 import { personTag as defaultPersonTag } from './person';
 import { supabase } from './supabase';
-import { contexts, normalizeTransaction, type IncomeSource, type Transaction } from './finance';
+import { defaultSources, normalizeTransaction, type IncomeSource, type Transaction } from './finance';
 export async function readTransactions(userId: string, personTag = defaultPersonTag) {
   if (!supabase) throw new Error('Supabase no está conectado.');
   const rows: Transaction[] = [];
@@ -26,7 +26,7 @@ export async function loadSources(userId: string, personTag = defaultPersonTag) 
   const sources = visible(await readSources(userId, personTag));
   if (sources.length) return sources;
   // La restricción única hace seguro el primer acceso simultáneo desde varios dispositivos.
-  const { error } = await supabase!.from('income_sources').upsert((personTag === 'diego' ? ['Personal'] as const : contexts).map(context => ({ user_id: userId, person_tag: personTag, name: context === 'Personal' ? 'Otro ingreso' : context, context })), { onConflict: 'user_id,person_tag,name', ignoreDuplicates: true });
+  const { error } = await supabase!.from('income_sources').upsert(defaultSources(personTag).map(({name,context}) => ({ user_id: userId, person_tag: personTag, name, context })), { onConflict: 'user_id,person_tag,name', ignoreDuplicates: true });
   if (error) throw error;
   return visible(await readSources(userId, personTag));
 }

@@ -14,6 +14,9 @@ try {
   await page.getByLabel('Clave de acceso').fill('1357955');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('heading', { name: '¿Cómo va el consultorio?' }).waitFor();
+  await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
+  await page.getByRole('button', { name: 'Aleja', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
   assert.equal(await page.getByRole('navigation').count(), 0, 'Una sola pantalla sin navegación de dashboard');
   await page.screenshot({ path: 'artifacts/desktop.png', fullPage: true });
   for (const width of [375, 320]) {
@@ -29,7 +32,7 @@ try {
   await page.getByLabel('Opciones').click();
   await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('500000');
-  await page.getByRole('button', { name: 'Clínica 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Déntica', exact: true }).click();
   await page.getByText('Cambiar fecha o agregar detalles').click();
   const earlier = new Date(); earlier.setMonth(earlier.getMonth() - 1); earlier.setDate(15);
   const previousDate = `${earlier.getFullYear()}-${String(earlier.getMonth() + 1).padStart(2, '0')}-15`;
@@ -39,7 +42,7 @@ try {
   assert.match(await page.locator('.daily-balance h1').textContent(), /500\.000/);
   await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('200000');
-  await page.getByRole('button', { name: 'Clínica 2', exact: true }).click();
+  await page.getByRole('button', { name: 'Sedato', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.match(await page.locator('.daily-balance h1').textContent(), /700\.000/);
@@ -99,7 +102,7 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   // Nombres de fuentes, clasificación de gasto y periodo se conservan en el CSV.
   await page.getByRole('button', { name: 'Fuentes de ingreso', exact: true }).click();
-  await page.getByRole('button', { name: 'Cambiar nombre de Clínica 1' }).click();
+  await page.getByRole('button', { name: 'Cambiar nombre de Déntica' }).click();
   await page.locator('input[name=source_name]').fill('Clínica Sonrisa');
   await page.getByRole('button', { name: 'Guardar nombre' }).click();
   await page.getByRole('button', { name: 'Cambiar nombre de Clínica Sonrisa' }).waitFor();
@@ -108,7 +111,7 @@ try {
   await page.getByRole('button', { name: 'Agregar fuente' }).click();
   await page.getByRole('button', { name: 'Cambiar nombre de Clínica Nueva' }).waitFor();
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Editar Pago de Clínica 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar Pago de Déntica', exact: true }).click();
   await page.locator('input[name=competence_date]').fill('2026-08-15');
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -155,7 +158,7 @@ try {
   assert.equal(await page.getByRole('heading', { name: '¿Cómo va el consultorio?' }).count(), 0);
   await page.getByRole('button', { name: 'Entrada', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'Consultorio', exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Clínica 1', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Déntica', exact: true }).count(), 0);
   await page.getByLabel('Moneda del movimiento').selectOption('USD');
   await page.getByLabel('Monto en dólares', { exact: true }).fill('150.25');
   await page.getByLabel('Concepto', { exact: true }).fill('Pago de Diego a Bancolombia');

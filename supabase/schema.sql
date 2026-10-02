@@ -651,3 +651,11 @@ create or replace view public.movements_export with (security_invoker=true) as
  from public.transactions t left join public.income_sources s on s.id=t.source_id and s.user_id=t.user_id
  left join public.accounts a on a.id=t.account_id and a.user_id=t.user_id;
 commit;
+begin;
+alter table public.transactions drop constraint transactions_context_check;
+alter table public.transactions add constraint transactions_context_check check(context in ('Personal','Consultorio','Clínica 1','Clínica 2','Clínica 3'));
+alter table public.income_sources drop constraint income_sources_context_check;
+alter table public.income_sources add constraint income_sources_context_check check(context in ('Personal','Consultorio','Clínica 1','Clínica 2','Clínica 3'));
+alter table public.classification_rules drop constraint classification_rules_context_check;
+alter table public.classification_rules add constraint classification_rules_context_check check(context in ('Personal','Consultorio','Clínica 1','Clínica 2','Clínica 3'));
+commit;

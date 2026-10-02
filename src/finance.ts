@@ -1,6 +1,6 @@
 import { bogotaToday } from '../lib/trm';
 import { personTag } from './person';
-export const contexts = ['Personal', 'Consultorio', 'Clínica 1', 'Clínica 2'] as const;
+export const contexts = ['Personal', 'Consultorio', 'Clínica 1', 'Clínica 2', 'Clínica 3'] as const;
 export const expenseCategories = ['Alimentación', 'Transporte', 'Hogar', 'Compras', 'Bienestar', 'Arriendo consultorio', 'Materiales', 'Laboratorio', 'Servicios', 'Otros'] as const;
 export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros'] as const;
 export type Currency = 'COP' | 'USD';
@@ -32,8 +32,9 @@ export type PaymentMethod = keyof typeof paymentMethods;
 export type FlowType = 'operating' | 'opening_balance' | 'financing' | 'transfer';
 export const flowLabels: Record<FlowType, string> = { operating: 'Ingreso o gasto normal', opening_balance: 'Saldo inicial', financing: 'Préstamo / financiación', transfer: 'Transferencia entre cuentas' };
 export type IncomeSource = { id: string; name: string; context: Context };
+export const sourceNames: Record<Context, string> = { Personal: 'Otro ingreso', Consultorio: 'Consultorio', 'Clínica 1': 'Déntica', 'Clínica 2': 'Sedato', 'Clínica 3': 'Aleja' };
 export function defaultSources(tag = personTag): IncomeSource[] {
-  return (tag === 'diego' ? ['Personal'] as const : contexts).map(context => ({ id: crypto.randomUUID(), name: context === 'Personal' ? 'Otro ingreso' : context, context }));
+  return (tag === 'diego' ? ['Personal'] as const : contexts).map(context => ({ id: crypto.randomUUID(), name: sourceNames[context], context }));
 }
 export function normalizeTransaction(t: Transaction, sources: IncomeSource[] = []): Transaction {
   return { ...t, currency: t.currency || 'COP', person_tag: t.person_tag || personTag, counterparty: t.counterparty || '', reference: t.reference || '', payment_method: t.payment_method || 'unspecified', competence_date: t.competence_date || t.date, flow_type: t.flow_type || 'operating', source_id: t.kind === 'income' ? t.source_id || sources.find(s => s.context === t.context)?.id || null : null };
