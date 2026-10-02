@@ -72,7 +72,7 @@ try {
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.match(await page.locator('.daily-balance h1').textContent(), /720\.000/);
-  assert.match(await page.locator('.office-note > p').textContent(), /Sus ingresos cubren/);
+  assert.match(await page.locator('.office-note > p').textContent(), /Lo cobrado cubre/);
   await page.getByRole('button', { name: 'Pagué algo', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('30000');
   await page.getByRole('button', { name: 'Consultorio', exact: true }).click();
