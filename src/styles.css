@@ -68,3 +68,40 @@
 .advance-row { padding: 12px 0; border-top: 1px solid #dce4d8; overflow-wrap: anywhere; }
 .advance-row p { font-size: 14px; line-height: 1.6; }
 .advance-row button { max-width: 100%; white-space: normal; }
+
+.quick-form .advance-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0 20px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f7f9f5;
+  cursor: pointer;
+}
+.quick-form .advance-option > input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  padding: 0;
+}
+.advance-option-copy { min-width: 0; }
+.advance-option-copy strong {
+  display: block;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.advance-option-copy small {
+  display: block;
+  margin-top: 4px;
+  color: #71816e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.advance-option:has(input:checked) { border-color: #91b4a3; background: #eef5f0; }
+.advance-option:focus-within { outline: 2px solid #8db595; outline-offset: 2px; }
+.advance-option:has(input:disabled) { cursor: default; }
