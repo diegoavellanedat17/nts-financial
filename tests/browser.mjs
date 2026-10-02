@@ -216,6 +216,8 @@ try {
   await page.getByText('Se guardará como Personal · Transporte. Puedes cambiar la categoría.').waitFor();
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  const earlierButton = page.getByRole('button', { name: 'Ver anteriores', exact: true });
+  if (await earlierButton.count()) await earlierButton.click();
   await page.getByRole('button', { name: 'Editar Didi regreso a casa' }).click();
   assert.equal(await page.locator('select[name=category]').inputValue(), 'Transporte');
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
