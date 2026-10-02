@@ -48,7 +48,7 @@ export function spendingByCategory(rows: Transaction[], month: string, context: 
   return [...totals].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
 }
 export type Budgets = Record<string, number>;
-export const money = (amount: number, currency: Currency = 'COP') => `${new Intl.NumberFormat('es-CO', { style: 'currency', currency, minimumFractionDigits: currency === 'USD' ? 2 : 0, maximumFractionDigits: currency === 'USD' ? 2 : 0 }).format(amount)} ${currency}`;
+export const money = (amount: number, currency: Currency = 'COP') => `${currency === 'USD' ? 'US$' : '$'}${new Intl.NumberFormat('es-CO', { minimumFractionDigits: currency === 'USD' || !Number.isInteger(Math.round(amount*100)/100) ? 2 : 0, maximumFractionDigits: 2 }).format(amount)} ${currency}`;
 function sumMoney(rows: Transaction[], value: (t: Transaction) => number) { return rows.reduce((s,t)=>s+Math.round(value(t)*100),0)/100; }
 export function today(now = new Date()) { return bogotaToday(now); }
 
