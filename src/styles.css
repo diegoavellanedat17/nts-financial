@@ -45,3 +45,23 @@
 .balance-check-form label {display:grid;gap:8px;}
 .balance-check-form input {width:100%;min-width:0;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;}
 .balance-check-form button {margin:12px 8px 0 0;}
+
+.credit-list {list-style:none;padding:0;display:grid;gap:12px;}
+.credit-list li {display:grid;gap:8px;padding:14px;background:white;border:1px solid var(--line);border-radius:10px;font-size:13px;overflow-wrap:anywhere;}
+.credit-list small,.credit-form small {color:var(--muted);font-size:11px;line-height:1.6;}
+.credit-form {margin-top:14px;}
+.credit-form fieldset {border:0;margin:0;padding:0;min-width:0;}
+.credit-form label {display:grid;gap:6px;margin:12px 0;font-size:13px;}
+.credit-form input,.credit-form select,.credit-form textarea {width:100%;min-width:0;font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;}
+.credit-form button {margin:8px 8px 0 0;max-width:100%;}
+.credit-form summary,.credit-simulator summary {cursor:pointer;color:var(--green);font-size:13px;padding:12px 0;}
+.credit-estimate {padding:12px;background:#edf4e8;border-radius:8px;font-size:13px;line-height:1.8;}
+.credit-scenarios {margin-top:16px;font-size:13px;line-height:1.8;overflow-wrap:anywhere;}
+.credit-scenarios h3 {font-size:14px;}
+.credit-scenarios > div {margin:12px 0;}
+.credit-scenarios button {background:transparent;color:var(--green);font-size:12px;padding:6px 0;}
+
+.balance-link-review {margin-top:14px;font-size:12px;line-height:1.7;}
+.balance-link-review .checkbox-label {display:flex;align-items:flex-start;gap:8px;margin:12px 0;}
+.balance-link-review input[type=checkbox] {width:auto;flex-shrink:0;margin-top:4px;}
+.balance-link-review span {overflow-wrap:anywhere;min-width:0;}
