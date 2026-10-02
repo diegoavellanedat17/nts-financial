@@ -119,7 +119,7 @@ try {
   await page.locator('select[name=category]').selectOption('Alimentación');
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
-  await page.getByText('¿En qué se fue el dinero?', { exact: false }).click();
+  await page.getByText('Ver categorías', { exact: false }).click();
   await page.getByLabel('Ver gastos de').selectOption('Personal');
   assert.match(await page.locator('.spending-content').textContent(), /Alimentación.*30\.000/);
   await page.reload();

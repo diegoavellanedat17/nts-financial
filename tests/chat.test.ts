@@ -14,3 +14,19 @@ it('obtiene identidad y filtros de la sesión, ignora la persona enviada por el 
 it('no mezcla reservas de consultorio entre monedas o espacios',()=>{const data=financeSnapshot([row('1','income',100,'operating',{context:'Consultorio',reserved:30}),row('2','expense',50,'operating',{context:'Consultorio',currency:'COP',from_reserve:true})],[],[],'2026-10-01');expect(data.reserved_by_currency).toEqual({COP:0,USD:30});expect(data.available_by_currency).toEqual({COP:-50,USD:70});});
 
 it('protege abonos completos ante pagos genéricos y libera solo en la fecha de entrega',()=>{const rows=[row('abono','income',100,'operating',{context:'Consultorio',patient_advance:true,reserved:100,reserve_release_date:'2026-10-02'}),row('lab','expense',20,'operating',{context:'Consultorio',from_reserve:true})];expect(financeSnapshot(rows,[],[],'2026-10-01').available_by_currency.USD).toBe(-20);const delivered=financeSnapshot(rows,[],[],'2026-10-02');expect(delivered.cash_by_currency.USD).toBe(80);expect(delivered.available_by_currency.USD).toBe(80);expect(delivered.patient_advances_pending).toHaveLength(0);});
+it('responde y guarda consultas básicas sin clave de IA, usando solo registros del perfil',async()=>{
+ vi.stubEnv('VITE_SUPABASE_URL','https://example.supabase.co');vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY','public-key');vi.stubEnv('OPENAI_API_KEY','');
+ const urls:string[]=[];let saved:any;
+ vi.stubGlobal('fetch',vi.fn(async(url:string|URL,options:RequestInit={})=>{
+  const u=String(url);urls.push(u);
+  if(u.includes('/auth/v1/user'))return Response.json({id:'natalia-id',email:'natalia-access@nts-financial.example.com'});
+  if(options.method==='HEAD')return new Response(null,{headers:{'content-range':'*/0'}});
+  if(u.includes('/transactions'))return Response.json([row('abono','income',100,'operating',{context:'Consultorio',patient_advance:true,reserved:100})]);
+  if(u.includes('/finance_chat')&&options.method==='POST'){saved=JSON.parse(String(options.body));return Response.json({id:'chat-id',question:saved.question,answer:saved.answer});}
+  return Response.json([]);
+ }));
+ const result=await call({question:'¿Cuánto está apartado?',person_tag:'diego'},'Bearer natalia-session');
+ expect(result.status).toBe(200);expect(result.body.answer).toContain('100 USD');expect(saved.model).toBe('recorded-rules-v1');expect(saved.person_tag).toBe('natalia');
+ expect(urls.some(url=>url.includes('api.openai.com'))).toBe(false);
+ expect(urls.filter(url=>url.includes('/transactions')).every(url=>url.includes('user_id=eq.natalia-id')&&url.includes('person_tag=eq.natalia'))).toBe(true);
+});

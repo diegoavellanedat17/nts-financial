@@ -121,3 +121,22 @@
 .receipts-scroll { margin-top: 12px; }
 .receipt-concept strong, .receipt-concept small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 500; }
 .receipt-release { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid #91b4a3; border-radius: 6px; background: #eef5f0; color: var(--green); font-size: 12px; }
+
+.office-totals { gap: 16px; }
+.office-totals > span { flex: 1; min-width: 0; }
+.office-totals strong { font-size: clamp(13px, 3.8vw, 18px); overflow-wrap: anywhere; }
+.office-totals i { display: block; height: 8px; margin-top: 12px; border-radius: 4px; background: var(--green); }
+.office-totals i.cash-paid { background: #c04747; }
+.office-result { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; font-size: 12px; color: #60735c; }
+.office-result strong { display: block; margin-top: 4px; color: var(--green); font-size: 17px; }
+.office-result strong.cash-negative { color: #c04747; }
+.cash-ratio { text-align: right; font-size: 20px; font-weight: 600; }
+.cash-ratio small { display: block; font-size: 10px; font-weight: 400; margin-top: 4px; }
+.cash-caption { display: block; font-size: 10px; color: #71816e; margin-top: 10px; }
+.spending-split h2 { font-size: 14px; font-weight: 600; }
+.expense-share-bar { display: flex; height: 12px; overflow: hidden; border-radius: 6px; margin: 14px 0 10px; }
+.share-personal { background: #c69b62; }.share-office { background: var(--green); }.share-clinics { background: #7b8faa; }
+.expense-share-labels { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 12px; }
+.expense-share-labels strong { font-weight: 500; }.expense-share-labels small { display: block; color: #71816e; margin-top: 4px; }
+.spending-summary > details { margin-top: 16px; }.spending-summary > details > summary { font-size: 12px; color: #7d956c; cursor: pointer; }
+.spending-summary > details > summary span { float: right; font-size: 10px; }
