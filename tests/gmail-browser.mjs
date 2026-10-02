@@ -26,7 +26,7 @@ try{
   if(url.pathname==='/auth/v1/token')data={access_token:jwt,refresh_token:'test-refresh',expires_in:3600,token_type:'bearer',user};
   else if(url.pathname==='/auth/v1/user')data=user;
   else if(url.pathname==='/rest/v1/income_sources')data=[source];
-  else if(url.pathname==='/rest/v1/transactions'){ if(route.request().method()==='POST'){const incoming=route.request().postDataJSON();const index=movements.findIndex(m=>m.id===incoming.id);if(index>=0)movements[index]=incoming;else movements.push(incoming);}data=movements;}
+  else if(url.pathname==='/rest/v1/transactions'){ if(route.request().method()==='POST'){const incoming=route.request().postDataJSON();const index=movements.findIndex(m=>m.id===incoming.id);if(index>=0)movements[index]=incoming;else movements.push(incoming);data=incoming;}else data=movements;}
   else if(url.pathname==='/rest/v1/accounts'){if(route.request().method()==='POST')accounts.push(route.request().postDataJSON());data=accounts;}
   else if(url.pathname==='/rest/v1/credit_cards'){if(route.request().method()==='POST'){const c=route.request().postDataJSON();const index=creditCards.findIndex(c2=>c2.id===c.id);if(index<0)creditCards.push(c);else creditCards[index]=c;}data=creditCards;}
   else if(url.pathname==='/rest/v1/credit_scenarios'){if(route.request().method()==='POST')creditScenarios.push(route.request().postDataJSON());data=creditScenarios;}

@@ -6,6 +6,9 @@ export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros
 export type Currency = 'COP' | 'USD';
 export type Context = typeof contexts[number];
 export type Transaction = {
+  classification_rule_key?: string | null;
+  patient_advance?: boolean;
+  reserve_release_date?: string | null;
   balance_check_id?: string | null;
   account_id?: string | null;
   transfer_id?: string | null;
@@ -55,6 +58,8 @@ export function validateTransaction(t: Transaction): string | null {
   if (t.kind !== 'income' && t.kind !== 'expense') return 'Selecciona un tipo válido.';
   if (t.flow_type && !Object.hasOwn(flowLabels, t.flow_type)) return 'Selecciona un tipo de movimiento válido.';
   if (t.competence_date && (!/^\d{4}-\d{2}-\d{2}$/.test(t.competence_date) || Number.isNaN(Date.parse(t.competence_date)) || new Date(`${t.competence_date}T12:00:00Z`).toISOString().slice(0, 10) !== t.competence_date)) return 'Selecciona una fecha de periodo válida.';
+  if (t.patient_advance && (t.kind !== 'income' || t.context !== 'Consultorio' || (t.flow_type || 'operating') !== 'operating' || t.reserved !== t.amount)) return 'El abono pendiente debe quedar apartado completo en Consultorio.';
+  if (t.reserve_release_date && (t.kind !== 'income' || !t.reserved || !/^\d{4}-\d{2}-\d{2}$/.test(t.reserve_release_date) || t.reserve_release_date < t.date || Number.isNaN(Date.parse(t.reserve_release_date)))) return 'La fecha de liberación no es válida.';
   const currency = t.currency || 'COP';
   if (!['COP','USD'].includes(currency)) return 'Selecciona COP o USD.';
   const validPrecision = (value: number) => currency === 'COP' ? Number.isSafeInteger(value) : Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
@@ -75,9 +80,12 @@ export function summarize(rows: Transaction[], month: string, currency: Currency
   const income = sumMoney(monthly.filter(t => t.kind === 'income' && !['transfer','opening_balance'].includes(t.flow_type || 'operating')), t => t.amount);
   const expenses = sumMoney(monthly.filter(t => t.kind === 'expense' && !['transfer','opening_balance'].includes(t.flow_type || 'operating')), t => t.amount);
   // Los saldos se acumulan hasta el cierre del mes; las reservas no caducan al cambiar de mes.
+  const asOf = month < today().slice(0,7) ? `${month}-31` : today();
   const history = all.filter(t => t.date.slice(0, 7) <= month);
   const cash = sumMoney(history,t => t.kind === 'income' ? t.amount : -t.amount);
-  const reserves = Object.fromEntries(contexts.map(context => [context, Math.max(0, sumMoney(history.filter(t => t.context === context),t => t.kind === 'income' ? t.reserved : t.from_reserve ? -t.amount : 0))])) as Record<Context, number>;
+  const reserves = Object.fromEntries(contexts.map(context => [context, Math.max(0, sumMoney(history.filter(t => t.context === context),t => t.kind === 'income' ? t.patient_advance ? 0 : (!t.reserve_release_date || t.reserve_release_date > asOf ? t.reserved : 0) : t.from_reserve ? -t.amount : 0))])) as Record<Context, number>;
+  const protectedAdvances = sumMoney(history.filter(t => t.patient_advance && (!t.reserve_release_date || t.reserve_release_date > asOf)), t => t.reserved);
+  reserves.Consultorio += protectedAdvances;
   const reserved = Math.round(Object.values(reserves).reduce((a, b) => a + b, 0) * 100) / 100;
   return { monthly, income, expenses, cash, reserves, reserved, available: Math.round((cash - reserved) * 100) / 100 };
 }
@@ -111,11 +119,11 @@ export function demoTransactions(): Transaction[] {
 }
 export function exportCsv(rows: Transaction[], sources: IncomeSource[] = [], userId = 'demo') {
   const cell = (value: string | number) => `"${(typeof value === 'string' ? value.replace(/^[\s]*[=+@\-]/, "'$&") : String(value)).replaceAll('"', '""')}"`;
-  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago', 'ID cuenta', 'ID transferencia', 'Rol transferencia', 'ID ajuste de saldo'];
+  const headers = ['ID movimiento', 'ID persona', 'Fecha pago', 'Fecha periodo', 'Tipo', 'Clasificación', 'Espacio', 'ID fuente', 'Fuente ingreso', 'Categoría', 'Descripción', 'Moneda', 'Monto', 'Flujo neto', 'Separado', 'Pagado con reserva', 'Persona', 'Tercero', 'Referencia', 'Medio de pago', 'ID cuenta', 'ID transferencia', 'Rol transferencia', 'ID ajuste de saldo', 'Regla aplicada', 'Abono pendiente', 'Fecha liberación'];
   const data = rows.map(row => {
     const t = normalizeTransaction(row);
     const source = sources.find(s => s.id === t.source_id);
-    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.flow_type === 'transfer' ? 'Transferencia' : t.transfer_role === 'fee' ? 'Comisión' : t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' && t.flow_type !== 'transfer' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!], t.account_id || '', t.transfer_id || '', t.transfer_role || '', t.balance_check_id || ''];
+    return [t.id, t.user_id || userId, t.date, t.competence_date!, t.flow_type === 'transfer' ? 'Transferencia' : t.transfer_role === 'fee' ? 'Comisión' : t.kind === 'income' ? 'Ingreso' : 'Gasto', t.flow_type!, t.context, t.source_id || '', t.kind === 'income' && t.flow_type !== 'transfer' ? source?.name || t.context : '', t.category, t.description, t.currency!, t.amount, t.kind === 'income' ? t.amount : -t.amount, t.reserved, t.from_reserve ? 'Sí' : 'No', t.person_tag!, t.counterparty!, t.reference!, paymentMethods[t.payment_method!], t.account_id || '', t.transfer_id || '', t.transfer_role || '', t.balance_check_id || '', t.classification_rule_key || '', t.patient_advance ? 'Sí' : 'No', t.reserve_release_date || ''];
   });
   return '\uFEFF' + [headers, ...data].map(row => row.map(cell).join(';')).join('\r\n');
 }

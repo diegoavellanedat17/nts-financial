@@ -254,3 +254,9 @@ Los escenarios no incrementan la deuda ni registran un gasto. Si se realiza una 
 `20261001090000_credit_context.sql` agrega tablas por persona, claves foráneas de propietario/persona/moneda, RLS y cambios en `change_history`. `20261001100000_balance_assignment.sql` permite seleccionar movimientos sin cuenta al fijar un saldo; la selección se asocia antes de calcular el ajuste, en la misma transacción, y queda en `linked_transaction_ids`. Se requiere revisar cuáles pertenecen a esa cuenta y cuáles a otras. No se asignan movimientos automáticamente por compartir moneda.
 
 La fecha predeterminada de movimientos, saldos y Gmail usa el día de Colombia, igual que TRM y las funciones de Supabase; no adelanta el día cuando en UTC ya es mañana.
+
+### Reglas y abonos de Natalia
+
+Didi, parqueadero y parqueo → Personal/Transporte; Gladys → Personal/Hogar; ventilador → Personal/Compras. Las reglas se guardan por propietario en `classification_rules`. Se aplican a gastos operativos con categoría Otros; una categoría manual tiene prioridad. Se conserva el concepto original y la regla aplicada, con historial en Supabase. Diego no comparte estas reglas.
+
+Un ingreso de Consultorio puede marcarse como abono de tratamiento pendiente: queda recibido en su cuenta y apartado completo del disponible. «Tratamiento entregado · liberar» registra la fecha de entrega sin crear otro ingreso. Un gasto genérico de laboratorio no consume estos abonos automáticamente. La referencia del caso permite relacionar abonos y costos; aún no se calcula utilidad por tratamiento. El CSV y `movements_export` incluyen regla, indicador de abono y fecha de liberación. Las vistas PyL existentes requieren adaptar el reconocimiento de estos abonos antes de usarlas como estado de resultados.

@@ -80,3 +80,22 @@ insert into public.budgets values ('${alice}','2026-09',400000);`);
     } finally { await old.close(); }
   }, 20000);
 });
+it('aplica reglas del propietario, respeta correcciones y libera abonos sin otro ingreso', async()=>{
+ await asAlice();
+ await db.query("insert into public.classification_rules(user_id,person_tag,rule_key,name,keywords,context,category) values($1,'natalia','transport_v1','Transporte',array['didi'],'Personal','Transporte')",[alice]);
+ const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+ await db.query("insert into public.transactions(id,user_id,date,kind,amount,context,category,description) values($1,$2,'2000-01-01','expense',100,'Consultorio','Otros','Didi')",[id,alice]);
+ expect((await db.query('select context,category,classification_rule_key from public.transactions where id=$1',[id])).rows[0]).toEqual({context:'Personal',category:'Transporte',classification_rule_key:'transport_v1'});
+ await db.query("update public.transactions set category='Compras' where id=$1",[id]);
+ expect((await db.query('select classification_rule_key from public.transactions where id=$1',[id])).rows[0]).toEqual({classification_rule_key:null});
+ const abono='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+ await db.query("insert into public.transactions(id,user_id,date,kind,amount,context,category,description,reserved,patient_advance) values($1,$2,'2000-01-01','income',1650000,'Consultorio','Tratamiento','Abono',1650000,true)",[abono,alice]);
+ await db.exec(`select set_config('app.user_id','${bob}',false)`);
+ await expect(db.query('select public.release_patient_advance($1)',[abono])).rejects.toThrow();
+ expect((await db.query('select * from public.classification_rules')).rows).toHaveLength(0);
+ await asAlice(); await db.query('select public.release_patient_advance($1)',[abono]);
+ const released=(await db.query<{amount:string;reserve_release_date:string}>('select amount,reserve_release_date from public.transactions where id=$1',[abono])).rows[0];
+ expect(Number(released.amount)).toBe(1650000);expect(released.reserve_release_date).toBeTruthy();
+ expect((await db.query("select id from public.change_history where record_id=$1 and operation='UPDATE'",[abono])).rows).toHaveLength(1);
+ await expect(db.query('select public.release_patient_advance($1)',[abono])).rejects.toThrow();
+});

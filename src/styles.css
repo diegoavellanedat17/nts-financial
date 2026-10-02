@@ -65,3 +65,6 @@
 .balance-link-review .checkbox-label {display:flex;align-items:flex-start;gap:8px;margin:12px 0;}
 .balance-link-review input[type=checkbox] {width:auto;flex-shrink:0;margin-top:4px;}
 .balance-link-review span {overflow-wrap:anywhere;min-width:0;}
+.advance-row { padding: 12px 0; border-top: 1px solid #dce4d8; overflow-wrap: anywhere; }
+.advance-row p { font-size: 14px; line-height: 1.6; }
+.advance-row button { max-width: 100%; white-space: normal; }
