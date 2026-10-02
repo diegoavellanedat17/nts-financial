@@ -1,3 +1,4 @@
+process.env.TZ = 'America/Bogota';
 process.on('uncaughtExceptionMonitor', error => console.error('::error::' + String(error.stack || error).slice(0, 10000).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D')));
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ let browser;
 try{
  for(let i=0;i<100;i++){try{if((await fetch(origin)).ok)break;}catch{}await setTimeout(200);if(i===99)throw new Error('Vite Gmail no respondió.');}
  browser=await chromium.launch();
- const page=await browser.newPage({viewport:{width:375,height:812}});
+ const page=await browser.newPage({timezoneId:'America/Bogota',viewport:{width:375,height:812}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const rateDay=new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'});
  let rateAvailable=true;

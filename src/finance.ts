@@ -1,3 +1,4 @@
+import { bogotaToday } from '../lib/trm';
 import { personTag } from './person';
 export const contexts = ['Personal', 'Consultorio', 'Clínica 1', 'Clínica 2'] as const;
 export const expenseCategories = ['Alimentación', 'Transporte', 'Hogar', 'Compras', 'Bienestar', 'Arriendo consultorio', 'Materiales', 'Laboratorio', 'Servicios', 'Otros'] as const;
@@ -45,10 +46,8 @@ export function spendingByCategory(rows: Transaction[], month: string, context: 
 export type Budgets = Record<string, number>;
 export const money = (amount: number, currency: Currency = 'COP') => `${new Intl.NumberFormat('es-CO', { style: 'currency', currency, minimumFractionDigits: currency === 'USD' ? 2 : 0, maximumFractionDigits: currency === 'USD' ? 2 : 0 }).format(amount)} ${currency}`;
 function sumMoney(rows: Transaction[], value: (t: Transaction) => number) { return rows.reduce((s,t)=>s+Math.round(value(t)*100),0)/100; }
-export function today() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+export function today(now = new Date()) { return bogotaToday(now); }
+
 export function validateTransaction(t: Transaction): string | null {
   if (t.person_tag && !/^[a-z][a-z0-9_]{0,39}$/.test(t.person_tag)) return 'Selecciona una persona válida.';
   if ((t.counterparty?.length || 0) > 120 || (t.reference?.length || 0) > 120) return 'La referencia y el tercero admiten hasta 120 caracteres.';

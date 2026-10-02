@@ -1,9 +1,10 @@
+process.env.TZ = 'America/Bogota';
 process.on('uncaughtExceptionMonitor', error => console.error('::error::' + String(error.stack || error).slice(0, 10000).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D')));
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch();
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
+  const page = await browser.newPage({ timezoneId: 'America/Bogota', viewport: { width: 1440, height: 1050 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.APP_URL || 'http://localhost:5173');

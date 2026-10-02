@@ -1,3 +1,4 @@
+import { today } from '../src/finance';
 import { describe, expect, it } from 'vitest';
 import { exportCsv, spendingByCategory, summarize, validateTransaction, type Transaction } from '../src/finance';
 const income: Transaction = { id: '1', date: '2026-09-15', kind: 'income', amount: 1000000, reserved: 400000, context: 'Consultorio', category: 'Tratamiento', description: 'Abono', from_reserve: false };
@@ -83,3 +84,5 @@ describe('COP y USD', () => {
   expect(csv).toContain('"USD"');expect(csv).toContain('"125.5"');expect(csv).not.toContain('Monto COP');
  });
 });
+
+ it('usa el día de Colombia aunque en UTC ya sea mañana', () => { expect(today(new Date('2026-10-02T00:15:00Z'))).toBe('2026-10-01'); });
