@@ -206,6 +206,17 @@ try {
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('.daily-balance h1').textContent(), balanceBefore);
+  const recordsBeforeTable = await page.evaluate(() => localStorage.getItem('natalia-finances-v1'));
+  await page.getByText('Ver cobros y abonos', { exact: true }).click();
+  const receiptTable = page.getByRole('region', { name: 'Cobros del consultorio', exact: true });
+  const pendingReceipt = receiptTable.getByRole('row').filter({ hasText: 'Abono pendiente caso de prueba' });
+  assert.match(await pendingReceipt.textContent(), /Por identificar/);
+  assert.match(await pendingReceipt.textContent(), /1\.650\.000.*Tratamiento pendiente/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('natalia-finances-v1')), recordsBeforeTable, 'Leer cobros no modifica movimientos ni saldos');
+  assert.equal(await page.locator('.daily-balance h1').textContent(), balanceBefore);
+  await page.setViewportSize({ width: 320, height: 812 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Tabla de cobros sin desbordar celular');
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.getByText('Abonos de tratamientos pendientes', { exact: true }).click();
   const incomeBeforeRelease = await page.locator('.income-total').textContent();
   page.once('dialog', dialog => dialog.accept());
