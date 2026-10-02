@@ -22,3 +22,15 @@ it('consulta los totales completos por moneda y no inventa utilidad futura',()=>
  expect(spending).toContain('755.350 COP');expect(spending).toContain('100 USD');
  expect(recordedAnswer(snapshot,'¿Cómo van los gastos de septiembre?')).toContain('este mes');
 });
+it('calcula el ranking completo y distingue categoría acumulada de gasto individual',async()=>{
+ const {rankedExpenseAnswer}=await import('../lib/recordedAnswers');
+ const expenses=[row('ventilador','expense',379950,'Personal',{category:'Compras',description:'Compra ventilador'}),row('gladys','expense',300000,'Personal',{category:'Hogar',description:'Pago Gladys'}),row('arriendo','expense',1800000,'Consultorio',{description:'Arriendo'}),row('ajuste','expense',6000000,'Personal',{flow_type:'opening_balance'}),row('futuro','expense',7000000,'Personal',{date:'2026-11-01'})];
+ const snapshot=financeSnapshot([...expenses,...Array.from({length:205},(_,i)=>row(`tiny-${i}`,'expense',1,'Personal',{date:'2026-10-02',category:'Otros'}))],[],[],'2026-10-02');
+ expect(snapshot.movements.some(r=>r.id==='ventilador')).toBe(false);
+ const answer=rankedExpenseAnswer(snapshot,'en que gasto más personalmente?');
+ expect(answer).toContain('en Compras');expect(answer).toContain('$379.950 COP');expect(answer).toContain('Compra ventilador');expect(answer).not.toContain('300.000');expect(answer).not.toContain('2026-10');expect(answer).not.toContain('movimiento id');
+ const twoPayments=financeSnapshot([...expenses,row('gladys-2','expense',300000,'Personal',{category:'Hogar'})],[],[],'2026-10-02');
+ const grouped=rankedExpenseAnswer(twoPayments,'¿En qué gasto más personalmente?');
+ expect(grouped).toContain('Hogar: $600.000 COP');expect(grouped).toContain('Compra ventilador');
+ expect(rankedExpenseAnswer(snapshot,'¿Cuál es el gasto mayor de septiembre?')).toBeNull();
+});

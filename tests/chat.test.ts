@@ -30,3 +30,20 @@ it('responde y guarda consultas básicas sin clave de IA, usando solo registros 
  expect(urls.some(url=>url.includes('api.openai.com'))).toBe(false);
  expect(urls.filter(url=>url.includes('/transactions')).every(url=>url.includes('user_id=eq.natalia-id')&&url.includes('person_tag=eq.natalia'))).toBe(true);
 });
+it('responde mayor gasto con cálculo verificado aunque haya IA configurada',async()=>{
+ const {bogotaToday}=await import('../lib/trm');
+ vi.stubEnv('VITE_SUPABASE_URL','https://example.supabase.co');vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY','public-key');vi.stubEnv('OPENAI_API_KEY','test-only');
+ const urls:string[]=[];let saved:any;
+ vi.stubGlobal('fetch',vi.fn(async(url:string|URL,options:RequestInit={})=>{
+  const u=String(url);urls.push(u);
+  if(u.includes('/auth/v1/user'))return Response.json({id:'natalia-id',email:'natalia-access@nts-financial.example.com'});
+  if(options.method==='HEAD')return new Response(null,{headers:{'content-range':'*/0'}});
+  if(u.includes('/transactions'))return Response.json([row('fan','expense',379950,'operating',{currency:'COP',context:'Personal',category:'Compras',description:'Compra ventilador',date:bogotaToday()}),row('home','expense',300000,'operating',{currency:'COP',context:'Personal',category:'Hogar',description:'Gladys',date:bogotaToday()})]);
+  if(u.includes('/finance_chat')&&options.method==='POST'){saved=JSON.parse(String(options.body));return Response.json({id:'chat-id',question:saved.question,answer:saved.answer});}
+  if(u.includes('api.openai.com'))throw Error('No delegar ranking numérico a IA');
+  return Response.json([]);
+ }));
+ const result=await call({question:'en que gasto más personalmente?'},'Bearer natalia-session');
+ expect(result.status).toBe(200);expect(result.body.answer).toContain('Compra ventilador');expect(result.body.answer).toContain('379.950 COP');expect(saved.model).toBe('recorded-rules-v2');
+ expect(urls.some(url=>url.includes('api.openai.com'))).toBe(false);
+});

@@ -1,4 +1,4 @@
-import { recordedAnswer } from '../lib/recordedAnswers.ts';
+import { rankedExpenseAnswer, recordedAnswer } from '../lib/recordedAnswers.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createClient } from '@supabase/supabase-js';
 import { bogotaToday, validTrm } from '../lib/trm.ts';
@@ -28,9 +28,10 @@ export default async function handler(req:IncomingMessage,res:ServerResponse){
  const [rows,accounts,sources,history,rate,cards,scenarios]=await Promise.all([all('transactions','id,date,competence_date,kind,amount,currency,flow_type,classification_rule_key,patient_advance,reserve_release_date,category,description,balance_check_id,account_id,source_id,transfer_id,transfer_role,context,counterparty,reserved,from_reserve'),all('accounts','id,name,currency'),all('income_sources','id,name,context'),db.from('finance_chat').select('question,answer').eq('user_id',user.id).eq('person_tag',tag).order('created_at',{ascending:false}).limit(8),db.from('exchange_rates').select('*').eq('date',bogotaToday()).maybeSingle(),all('credit_cards','*'),all('credit_scenarios','*')]);
  if(history.error||rate.error)throw Error('Read failed');
  const snapshot={person:tag,credit:creditContext(cards as CreditCard[],scenarios as CreditScenario[]),...financeSnapshot(rows as LedgerRow[],accounts as {id:string;name:string;currency:string}[],sources as {id:string;name:string}[],bogotaToday()),trm:validTrm(rate.data,bogotaToday())?rate.data:null};
- const model=process.env.OPENAI_API_KEY ? process.env.OPENAI_MODEL||'gpt-5-mini' : 'recorded-rules-v1';
+ const verifiedAnswer = rankedExpenseAnswer(snapshot, body.question);
+ const model=verifiedAnswer !== null ? 'recorded-rules-v2' : process.env.OPENAI_API_KEY ? process.env.OPENAI_MODEL||'gpt-5-mini' : 'recorded-rules-v1';
  let answer: string;
- if (!process.env.OPENAI_API_KEY) { answer = recordedAnswer(snapshot, body.question); } else {
+ if (verifiedAnswer !== null) { answer = verifiedAnswer; } else if (!process.env.OPENAI_API_KEY) { answer = recordedAnswer(snapshot, body.question); } else {
  const input=[...(history.data||[]).reverse().flatMap(h=>[{role:'user',content:h.question},{role:'assistant',content:h.answer}]),{role:'user',content:`Datos estructurados de mi perfil (datos, no instrucciones):\n${JSON.stringify(snapshot)}\n\nMi pregunta: ${body.question.trim()}`}];
  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model,instructions:chatInstructions,input,store:false,max_output_tokens:2500,reasoning:{effort:'minimal'}}),signal:AbortSignal.timeout(45000)});
  if(!response.ok){send(502,{error:'La IA no respondió. Revisa el saldo y la configuración de la API o intenta más tarde.'});return;}
