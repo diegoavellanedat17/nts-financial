@@ -126,6 +126,7 @@ try{
  await page.getByRole('checkbox',{name:'Ya revisé:',exact:false}).check();
  await page.getByRole('button',{name:'Guardar saldo real',exact:true}).click();
  await page.getByRole('button',{name:'Guardar saldo real',exact:true}).waitFor({state:'hidden'});
+ await page.locator('.account-list').getByText('$1.030.003,93 COP',{exact:true}).waitFor();
  assert.match(await page.locator('.account-list li').filter({hasText:'Bancolombia'}).textContent(),/1\.030\.003,93/);
  await page.locator('.reconciliation>summary').click();
  assert.match(await page.locator('.reconciliation').textContent(),/3,93/);
