@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { expenseCategories, money, spendingByCategory, today, type Currency, type Transaction } from './finance';
 
-const colors = ['#d18a45', '#597eab', '#176b58', '#9474b4', '#b95e70', '#658675', '#82984d', '#9b775c', '#428b98', '#929990', '#ad704e'];
+const colors = ['#d18a45', '#597eab', '#176b58', '#9474b4', '#b95e70', '#658675', '#82984d', '#9b775c', '#428b98', '#929990', '#ad704e', '#6b78ae'];
 const label = (category: string) => category === 'Otros' ? 'Otros / sin clasificar' : category;
 export function SpendingDonut({ rows, currency, isDental = false, onCategorize, busy = false }: { rows: Transaction[]; currency: Currency; isDental?: boolean; onCategorize?: (id: string) => void; busy?: boolean }) {
   const [selection, setSelection] = useState<string | null>(null);
