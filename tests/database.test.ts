@@ -16,6 +16,7 @@ beforeAll(async () => {
   db = new PGlite();
   await db.exec(auth);
   await db.exec(schema);
+  await db.exec(readFileSync(new URL('../supabase/migrations/20261005160000_debt_category.sql', import.meta.url), 'utf8'));
   await db.exec(`insert into public.income_sources(id,user_id,name,context) values ('${source}','${alice}','Clínica Real','Clínica 1');
 insert into public.transactions(id,user_id,date,competence_date,kind,amount,context,category,description,source_id) values
 (gen_random_uuid(),'${alice}','2026-10-05','2026-09-20','income',1000000,'Clínica 1','Honorarios','Trabajo septiembre','${source}'),
@@ -27,6 +28,19 @@ insert into public.transactions(id,user_id,date,kind,amount,context,category,des
 afterAll(async () => { await db?.close(); });
 async function asAlice() { await db.exec(`set role authenticated; select set_config('app.user_id','${alice}',false);`); }
 describe('Base de reportes y seguridad de Supabase (Postgres local)', () => {
+  it('permite reclasificar una deuda sin cambiar el dinero y mantiene válidas las categorías', async () => {
+    await asAlice();
+    const before = await db.query<{ total: string }>("select sum(amount)::text as total from public.transactions");
+    await db.exec("update public.transactions set category='Deudas' where kind='expense' and description='Mercado'");
+    const debt = await db.query<{ amount: string }>("select amount::text from public.transactions where category='Deudas'");
+    expect(debt.rows).toEqual([{ amount: '100000' }]);
+    const after = await db.query<{ total: string }>("select sum(amount)::text as total from public.transactions");
+    expect(after.rows).toEqual(before.rows);
+    await expect(db.exec("update public.transactions set category='Deudas' where kind='income'")).rejects.toThrow();
+    await expect(db.exec("update public.transactions set category='Inventada' where kind='expense'")).rejects.toThrow();
+    await db.exec("update public.transactions set category='Alimentación' where description='Mercado'");
+  });
+
   it('separa fecha de pago de fecha de periodo y excluye saldo inicial de PyL', async () => {
     await asAlice();
     const cash = await db.query<{ received: string }>('select sum(received_cop)::text as received from public.cashflow_monthly');

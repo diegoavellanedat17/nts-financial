@@ -198,6 +198,19 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `Dona sin desbordamiento a ${width}px`);
   }
   await chart.getByRole('button', { name: 'Ver total', exact: true }).click();
+  await chart.getByRole('button', { name: 'Ver gastos de Otros / sin clasificar', exact: true }).click();
+  await chart.getByRole('button', { name: 'Categorizar Gasto personal', exact: true }).click();
+  await page.getByLabel('Categoría', { exact: true }).selectOption('Deudas');
+  await page.getByRole('button', { name: 'Guardar respuesta', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await chart.getByRole('button', { name: 'Ver gastos de Deudas', exact: true }).click();
+  await chart.locator('.category-detail').getByText('Gasto personal', { exact: true }).waitFor();
+  assert.match(await page.locator('.daily-balance h1').textContent(), /130,15.*USD/);
+  await chart.getByRole('button', { name: 'Categorizar Gasto personal', exact: true }).click();
+  await page.getByLabel('Categoría', { exact: true }).selectOption('Servicios');
+  await page.getByRole('button', { name: 'Guardar respuesta', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+
 
   await page.getByRole('group', { name: 'Moneda del saldo' }).getByRole('button', { name: 'COP', exact: true }).click();
   assert.match(await page.locator('.daily-balance h1').textContent(), /\$\s*0.*COP/);

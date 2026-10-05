@@ -1,7 +1,7 @@
 import { bogotaToday } from '../lib/trm';
 import { personTag } from './person';
 export const contexts = ['Personal', 'Consultorio', 'Clínica 1', 'Clínica 2', 'Clínica 3'] as const;
-export const expenseCategories = ['Alimentación', 'Transporte', 'Hogar', 'Compras', 'Bienestar', 'Arriendo consultorio', 'Materiales', 'Laboratorio', 'Servicios', 'Otros'] as const;
+export const expenseCategories = ['Alimentación', 'Transporte', 'Hogar', 'Compras', 'Bienestar', 'Arriendo consultorio', 'Materiales', 'Laboratorio', 'Servicios', 'Otros', 'Deudas'] as const;
 export const incomeCategories = ['Consulta', 'Tratamiento', 'Honorarios', 'Otros'] as const;
 export type Currency = 'COP' | 'USD';
 export type Context = typeof contexts[number];

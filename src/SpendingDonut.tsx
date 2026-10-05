@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { expenseCategories, money, spendingByCategory, today, type Currency, type Transaction } from './finance';
 
-const colors = ['#d18a45', '#597eab', '#176b58', '#9474b4', '#b95e70', '#658675', '#82984d', '#9b775c', '#428b98', '#929990'];
+const colors = ['#d18a45', '#597eab', '#176b58', '#9474b4', '#b95e70', '#658675', '#82984d', '#9b775c', '#428b98', '#929990', '#ad704e'];
 const label = (category: string) => category === 'Otros' ? 'Otros / sin clasificar' : category;
-export function SpendingDonut({ rows, currency, isDental = false }: { rows: Transaction[]; currency: Currency; isDental?: boolean }) {
+export function SpendingDonut({ rows, currency, isDental = false, onCategorize, busy = false }: { rows: Transaction[]; currency: Currency; isDental?: boolean; onCategorize?: (id: string) => void; busy?: boolean }) {
   const [selection, setSelection] = useState<string | null>(null);
   const [context, setContext] = useState<'Personal' | 'Consultorio'>('Personal');
   const month = today().slice(0, 7);
@@ -27,7 +28,7 @@ export function SpendingDonut({ rows, currency, isDental = false }: { rows: Tran
         <div><span>{selected ? label(selected.category) : isDental ? context === 'Personal' ? 'Gastos personales' : 'Gastos del consultorio' : 'Gastos del mes'}</span><strong>{money(selected?.amount ?? total, currency)}</strong>{selected && <small>{new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(selected.amount / total * 100)}% del total</small>}</div>
       </div>
       <ul className="category-legend">{slices.map(t => <li key={t.category}><button type="button" aria-pressed={selected?.category === t.category} aria-label={`Ver gastos de ${label(t.category)}`} onClick={() => setSelection(selected?.category === t.category ? null : t.category)}><span className="category-dot" style={{ background: t.color }} /><span className="category-name">{label(t.category)}<i style={{ width: `${t.percent}%`, background: t.color }} /></span><span className="category-numbers"><strong>{money(t.amount, currency)}</strong><small>{new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(t.percent)}%</small></span></button></li>)}</ul>
-      {selected && <div className="category-detail" aria-label={`Movimientos de ${label(selected.category)}`}><div><h3>{label(selected.category)}</h3><button className="show-more" onClick={() => setSelection(null)}>Ver total</button></div><ul>{details.map(t => <li key={t.id}><span>{t.description}<small>{new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(new Date(`${t.date}T12:00:00`))}</small></span><strong>{money(t.amount, currency)}</strong></li>)}</ul></div>}
+      {selected && <div className="category-detail" aria-label={`Movimientos de ${label(selected.category)}`}><div><h3>{label(selected.category)}</h3><button className="show-more" onClick={() => setSelection(null)}>Ver total</button></div><ul>{details.map(t => <li key={t.id}><span>{t.description}<small>{new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(new Date(`${t.date}T12:00:00`))}</small></span><strong>{money(t.amount, currency)}</strong>{onCategorize && <button type="button" className="clarification-pencil" aria-label={`Categorizar ${t.description}`} disabled={busy} onClick={() => onCategorize(t.id)}><Pencil size={16} /></button>}</li>)}</ul></div>}
     </> : <p className="empty-note">Sin gastos registrados este mes en {isDental ? `${context} · ` : ''}{currency}.</p>}
   </section>;
 }
