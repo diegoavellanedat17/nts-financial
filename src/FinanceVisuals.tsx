@@ -1,14 +1,14 @@
-import { expenseShares, officeCash } from '../lib/insights';
-import { money, type Currency, type Transaction } from './finance';
+import { expenseShares, officeCash, officeAfterReserves } from '../lib/insights';
+import { money, today, type Currency, type Transaction } from './finance';
 export function OfficeChart({ rows, currency }: { rows: Transaction[]; currency: Currency }) {
-  const cash = officeCash(rows), scale = Math.max(cash.received, cash.paid, 1);
+  const cash = officeCash(rows), scale = Math.max(cash.received, cash.paid, 1), free = officeAfterReserves(rows, today());
   return <div className="office-cash-chart">
     <div className="office-totals">
       <span>Cobró<strong>{money(cash.received, currency)}</strong><i style={{ width: `${cash.received / scale * 100}%` }} /></span>
       <span>Pagó<strong>{money(cash.paid, currency)}</strong><i className="cash-paid" style={{ width: `${cash.paid / scale * 100}%` }} /></span>
     </div>
-    <div className="office-result"><span>Resultado de caja<strong className={cash.net < 0 ? 'cash-negative' : ''}>{cash.net > 0 ? '+' : ''}{money(cash.net, currency)}</strong></span>{cash.expensePercent !== null && <span className="cash-ratio">{Math.round(cash.expensePercent)}%<small>de cobros en gastos</small></span>}</div>
-    <small className="cash-caption">Incluye abonos. No es utilidad.</small>
+    <div className="office-result"><span>{free.net < 0 ? 'Falta cubrir con otros fondos' : 'Queda de los cobros'}<strong className={free.net < 0 ? 'cash-negative' : ''}>{money(Math.abs(free.net), currency)}</strong></span>{free.reserved > 0 && <span className="cash-ratio">{money(free.reserved, currency)}<small>apartado de estos cobros</small></span>}</div>
+    <small className="cash-caption">Cobros del mes menos pagos y dinero apartado. No es utilidad.</small>
   </div>;
 }
 export function SpendingSplit({ rows, currency }: { rows: Transaction[]; currency: Currency }) {
