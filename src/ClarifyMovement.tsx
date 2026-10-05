@@ -28,10 +28,10 @@ export function ClarifyMovement({ transaction: t, question, busy, error, onSave 
     <p className="clarify-amount">{money(t.amount, t.currency || 'COP')} · {t.date.split('-').reverse().join('/')}</p>
     <p className="clarify-question">{question}</p>
     <fieldset disabled={busy}>
-      <label>Concepto<textarea required maxLength={4000} rows={2} value={description} onChange={e => setDescription(e.target.value)} /></label>
+      <label>Concepto<textarea aria-label="Concepto" required maxLength={4000} rows={2} value={description} onChange={e => setDescription(e.target.value)} /></label>
       {t.kind === 'expense' ? <>
         {t.person_tag === 'natalia' && <label>¿Para quién?<select value={context} onChange={e => { const next = e.target.value as Transaction['context']; setContext(next); if (next === 'Personal' && ['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(category)) setCategory('Otros'); }}><option>Personal</option><option>Consultorio</option></select></label>}
-        <label>Categoría<select value={category} onChange={e => setCategory(e.target.value)}>{expenseCategories.filter(c => context !== 'Personal' || !['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(c)).map(c => <option key={c}>{c}</option>)}</select></label>
+        <label>Categoría<select aria-label="Categoría" value={category} onChange={e => setCategory(e.target.value)}>{expenseCategories.filter(c => context !== 'Personal' || !['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(c)).map(c => <option key={c}>{c}</option>)}</select></label>
       </> : <>
         <div className="delivery-choices" role="group" aria-label="Estado de los tratamientos">{([['done','Ya entregados'],['pending','Aún pendientes'],['mixed','Hay de ambos']] as const).map(([value,label]) => <button type="button" key={value} aria-pressed={delivery === value} onClick={() => setDelivery(value)}>{label}</button>)}</div>
         {delivery === 'mixed' && <label>¿Cuánto hay que apartar?<MoneyInput value={reserved} onValueChange={setReserved} currency={t.currency || 'COP'} min="0" max={t.amount} step={t.currency === 'USD' ? 0.01 : 1} /></label>}
