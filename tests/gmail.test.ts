@@ -45,3 +45,34 @@ it('no cuenta dos veces el mismo texto en un correo multipart',()=>{
  source.payload={headers:source.payload!.headers,mimeType:'multipart/alternative',parts:[{mimeType:'text/plain',body:source.payload!.body},{mimeType:'text/html',body:{data:Buffer.from('<p>Compraste COP 50.000</p>').toString('base64url')}}]};
  expect(candidateFromMessage(source,email)).toMatchObject({amount:'50000',currency:'COP'});
 });
+
+it('continúa por páginas sin excluir pendientes antiguos ni perder el cursor', async () => {
+ const fetcher = vi.fn(async (url: string) => {
+  if (url.endsWith('/profile')) return Response.json({emailAddress:email});
+  if (url.includes('/messages?')) {
+   const params = new URL(url).searchParams;
+   expect(params.get('q')).not.toContain('after:');
+   return Response.json(params.has('pageToken') ? {messages:[{id:'old'}]} : {messages:[{id:'new'}],nextPageToken:'older'});
+  }
+  return Response.json({...message('Compraste COP 17.000'), id:url.includes('/old')?'old':'new',internalDate:String(Date.parse(url.includes('/old')?'2020-01-01T12:00:00Z':'2026-10-01T12:00:00Z'))});
+ });
+ vi.stubGlobal('fetch',fetcher);
+ const first = await scanGmail('token',undefined,undefined,email);
+ expect(first.nextPageToken).toBe('older'); expect(first.candidates).toHaveLength(1);
+ const second = await scanGmail('token',undefined,undefined,email,first.nextPageToken);
+ expect(second.candidates[0].messageId).toBe('old'); expect(second.nextPageToken).toBe('');
+});
+
+it('extrae el comercio del cuerpo de los avisos genéricos sin inventar detalles de la compra', () => {
+ const uber = candidateFromMessage(message('Bancolombia: Compraste $18.987,00 en\r\nUBER*RIDES con tu T.Deb *0000, el 02/10/2026 a las 20:21. Si tienes dudas, contáctanos.', 'Alertas y Notificaciones'),email);
+ expect(uber).toMatchObject({merchant:'UBER*RIDES',description:'Compra en Uber',amount:'18987'});
+ const rappi = candidateFromMessage(message('Bancolombia: Compraste $41.450,00 en\r\nRappi con tu T.Deb *0000, el 02/10/2026 a las 18:54.', 'Alertas y Notificaciones'),email);
+ expect(rappi).toMatchObject({merchant:'Rappi',description:'Compra en Rappi',amount:'41450'});
+ expect(rappi.description).not.toContain('Hamburguesa');
+ expect(candidateFromMessage(message('Compraste COP 18.000 en UBER*EATS con tu tarjeta.'),email)).toMatchObject({merchant:'UBER*EATS',description:'Compra en Uber Eats'});
+});
+it('no usa marcas del pie del correo como comercio ni propone una compra rechazada', () => {
+ expect(candidateFromMessage(message('Recibiste COP 50.000. Descuentos con Uber y Rappi.', 'Alertas y Notificaciones'),email)).toMatchObject({description:'Alertas y Notificaciones',merchant:undefined});
+ expect(candidateFromMessage(message('Compra realizada COP 50.000 en Rappi con tu tarjeta. Transacción rechazada.'),email).merchant).toBeUndefined();
+ expect(candidateFromMessage(message('Compraste COP 10.000 en Rappi con tu tarjeta. Compraste COP 20.000 en Uber con tu tarjeta.'),email).merchant).toBeUndefined();
+});

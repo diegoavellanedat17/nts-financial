@@ -188,7 +188,7 @@ El concepto se escribe directamente en Entrada/Salida y se guarda en `transactio
 
 ## Importación de Gmail para Diego
 
-El botón **Revisar Gmail** abre la autorización de Google y busca avisos del día elegido en horario de Colombia. Los montos ambiguos y las monedas no explícitas requieren revisión. Cada aviso permite corregir tipo, monto, COP/USD, fecha, concepto, categoría y fuente; guardar exige una confirmación por movimiento. Los correos de facturas, rechazos o pagos pendientes nunca se registran solos. No interpreta adjuntos ni reemplaza un extracto bancario. La búsqueda inicial cubre frases frecuentes de avisos de compras/pagos/transferencias y algunos bancos colombianos; se ajustará con ejemplos reales. Hay un límite visible de 500 correos por consulta.
+El botón **Revisar Gmail** abre la autorización de Google y permite continuar con avisos pendientes de todo el historial o buscar un día en horario de Colombia. Los montos ambiguos y las monedas no explícitas requieren revisión. Cada aviso permite corregir tipo, monto, COP/USD, fecha, concepto, categoría y fuente; guardar exige una confirmación por movimiento. Los correos de facturas, rechazos o pagos pendientes nunca se registran solos. No interpreta adjuntos ni reemplaza un extracto bancario. La búsqueda inicial cubre frases frecuentes de avisos de compras/pagos/transferencias y algunos bancos colombianos; se ajustará con ejemplos reales. La búsqueda de pendientes trae 100 avisos por lote; por fecha trae hasta 500. En ambos modos se puede continuar con «Cargar más avisos».
 
 Google concede lectura con `gmail.readonly` mediante Google Identity Services, modelo de token en navegador. El token existe solo en memoria durante la sesión: no se guarda en Supabase, localStorage, Git ni Vercel. Al vencer o recargar hay que volver a conectar; no existe sincronización automática. El botón Desconectar revoca el permiso. La conexión Gmail de Codex es independiente de esta conexión de la app.
 
@@ -272,3 +272,40 @@ El estilo del chat se documenta en `prompts/finance-assistant/SKILL.md` y se inc
 Las transferencias de hoy entre monedas pueden registrarse con el monto recibido y el saldo restante en origen. `create_transfer_from_balance` calcula el débito desde el saldo registrado, verifica que no haya cambiado y reintenta con el mismo ID sin duplicar movimientos. Se guardan saldo antes/después, TRM de referencia del día, cambio efectivo y diferencia frente a TRM en `transfers`. Esa diferencia es informativa: puede incluir costos no desglosados y nunca crea otro gasto. Las comisiones explícitas siguen separadas y se descuentan una sola vez. Para una fecha anterior o sin saldo inicial, se usa «Sé cuánto salió»/modo manual. Los registros anteriores conservan su funcionamiento; cancelar elimina las piernas juntas y conserva el historial. El chat recibe estos metadatos con los filtros del perfil.
 
 El botón **Poner saldo real**, disponible para ambos perfiles, concilia cada cuenta con el banco. Guarda la fecha, saldo previo, saldo observado y diferencia en Supabase; los ajustes aparecen en **Otros · Conciliación**. Están incluidos en el saldo de la cuenta y se excluyen de ingresos, gastos y PyL. El neto y el historial se muestran por moneda, sin sumar COP con USD ni sumar un segundo bolsillo al efectivo. Los saldos bancarios y transferencias admiten dos decimales en COP; los movimientos normales en COP siguen en pesos enteros. El chat recibe el historial completo de conciliaciones del perfil autenticado. Los campos de dinero muestran separadores de miles y coma decimal.
+
+
+## Continuar importaciones de Gmail y saldo de Bancolombia
+
+En el perfil de Diego, Bancolombia muestra su saldo calculado a partir de los movimientos asignados a la cuenta, incluyendo transferencias y conciliaciones. «Actualizar saldo» abre la conciliación existente para registrar el saldo observado en el banco. No consulta el banco en vivo ni deduce su saldo de un correo. Si faltan movimientos históricos por asignar, se revisan antes de conciliar.
+
+Gmail abre por defecto «Continuar con correos pendientes»: busca en todo el historial por lotes de 100 y compara los IDs con `gmail_imports` para mostrar «Ya registrado». Los guardados son visibles por defecto y pueden ocultarse con el control correspondiente. «Cargar más avisos» permite recuperar pendientes antiguos sin usar la fecha del último movimiento como corte. «Buscar por fecha» sigue disponible. El historial muestra la fecha del último guardado y los cinco correos más recientes, con su ID; los comprobantes se conservan incluso al borrar el movimiento. Omitir solo quita el aviso de la revisión actual. Los identificadores se guardan en la app, sin modificar ni etiquetar los mensajes de Gmail.
+
+El monto de Gmail y el saldo destacado de Bancolombia usan comas para miles (`$17,000 COP`) y punto decimal; el valor numérico guardado no cambia. Al confirmar un aviso se puede seleccionar su cuenta. Solo se sugiere automáticamente cuando el nombre coincide de forma única con el remitente o asunto y la moneda; siempre puede corregirse antes de guardar.
+
+Antes de publicar este frontend, aplicar `supabase/migrations/20261004000000_gmail_account_and_history.sql` en el proyecto existente (con el historial de migraciones alineado). Extiende la importación atómica para conservar `account_id`; la clave foránea verifica propietario, perfil y moneda. No modifica importaciones anteriores ni vuelve a asignarlas automáticamente. Validación local: pruebas de importación/aislamiento en PGlite, formato monetario, paginación y flujos de navegador con Gmail/Supabase simulados.
+
+
+Los comprobantes existentes muestran «Ya registrado» con el concepto y monto del movimiento asociado, conservando las descripciones editadas por Diego. Si el movimiento se eliminó, el comprobante permanece y se indica que ya no está en la lista. Para compras con un comercio explícito en el cuerpo (`Compraste … en UBER*RIDES con tu …` o `… en Rappi con tu …`), el concepto sugerido usa ese comercio y muestra también el descriptor original. No se infieren artículos comprados, ni se usan marcas del pie publicitario como comercio. Estas mejoras de descripción y estado consultan los comprobantes existentes y no requieren modificar registros históricos.
+
+
+## Relevo entre computadores: Gmail y Bancolombia
+
+Rama de revisión: `feat/diego-gmail-bancolombia`. Los cambios incluyen saldo destacado de Bancolombia, montos con miles separados por comas, búsqueda de correos por lotes, comprobantes «Ya registrado» y propuesta de comercio desde el cuerpo del aviso. Se conservan los conceptos editados por el usuario. La lógica y los pendientes se describen en la sección anterior.
+
+Validación realizada antes del relevo: 69 pruebas unitarias/base de datos aprobadas, compilación TypeScript/Vite aprobada y flujos de navegador generales y Gmail aprobados. Los escenarios automatizados usan datos y APIs de prueba. También se verificó el historial existente en la interfaz local mediante lecturas, sin modificar registros reales.
+
+Pendiente antes de integrar en `main`: revisar la migración `20261004000000_gmail_account_and_history.sql`, verificar el historial del proyecto Supabase de destino y aplicarla antes de publicar el frontend. La versión anterior de la función de importación ignora `account_id`; hacer push del frontend no aplica esta migración. Los gastos históricos sin cuenta continúan sin asignar y requieren revisión antes de cualquier corrección. No se aplicó la migración remota ni se publicó este cambio en producción.
+
+Para continuar en otro computador, con el árbol de trabajo limpio:
+
+```sh
+git fetch origin
+git switch feat/diego-gmail-bancolombia
+git pull --ff-only
+npx -y -p node@22 -c 'npm ci'
+npx -y -p node@22 -c 'npm run dev'
+```
+
+Cada computador mantiene su propio `.env.local`, ignorado por Git. Usar `.env.example` como referencia y obtener las variables desde el proyecto correspondiente en Vercel. Las variables de servidor siguen pendientes de configurar donde no estén disponibles. Los tokens, archivos de entorno, dependencias, capturas y la conversación del agente no se trasladan con un push.
+
+Al cambiar de computador, terminar con commit y push e indicar en este README qué quedó pendiente. El siguiente agente debe leer el estado de Git y esta sección antes de editar. Para trabajo simultáneo, usar una rama por tarea y revisar/integrar los cambios mediante pull request; para continuar la misma tarea de forma secuencial, usar esta misma rama. Integrar en `main` solo cuando esté lista para el despliegue automático.

@@ -5,7 +5,7 @@ type GmailPart = { mimeType?: string; headers?: { name: string; value: string }[
 export type GmailCandidate = {
   messageId: string; account: string; receivedAt: string; sender: string; subject: string; excerpt: string;
   date: string; amount: string; currency: Currency | ''; kind: 'income' | 'expense' | '';
-  description: string; flowType: 'operating' | 'transfer';
+  merchant?: string; description: string; flowType: 'operating' | 'transfer';
 };
 export const gmailScope = 'https://www.googleapis.com/auth/gmail.readonly';
 export const gmailClientId = import.meta.env.VITE_GOOGLE_GMAIL_CLIENT_ID?.trim() || '';
@@ -18,9 +18,9 @@ export function bogotaDay(date: string) {
   const start = Date.parse(`${date}T00:00:00-05:00`) / 1000;
   return { start, end: start + 86400 };
 }
-export function gmailQuery(date: string) {
-  const { start, end } = bogotaDay(date);
-  return `after:${start - 1} before:${end} -in:spam -in:trash -in:sent -in:drafts -category:promotions {"compra realizada" "compraste" "pagaste" "pago exitoso" "pago recibido" "transferencia exitosa" "transferencia realizada" "transferencia recibida" "recibiste" "retiro realizado" "transaction alert" "purchase" "payment received" "payment successful" "deposit received" "Bancolombia" "Davivienda" "Nequi" "Nu Colombia"}`;
+export function gmailQuery(date?: string) {
+  const bounds = date ? bogotaDay(date) : null;
+  return `${bounds ? `after:${bounds.start - 1} before:${bounds.end} ` : ''} -in:spam -in:trash -in:sent -in:drafts -category:promotions {"compra realizada" "compraste" "pagaste" "pago exitoso" "pago recibido" "transferencia exitosa" "transferencia realizada" "transferencia recibida" "recibiste" "retiro realizado" "transaction alert" "purchase" "payment received" "payment successful" "deposit received" "Bancolombia" "Davivienda" "Nequi" "Nu Colombia"}`;
 }
 function decode(data: string) {
   try { return new TextDecoder().decode(Uint8Array.from(atob(data.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0))); }
@@ -55,6 +55,21 @@ function parseAmount(raw: string, currency: Currency | ''): string {
   if (!Number.isFinite(amount) || amount <= 0 || amount > 999999999 || (currency === 'COP' && !Number.isInteger(amount))) return '';
   return String(amount);
 }
+// Match the purchase sentence, not brand names in promotional footers or links.
+export function purchaseMerchant(text: string): string | undefined {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  const pattern = /\b(?:compraste|pagaste|compra realizada)\s+(?:por\s+)?(?:COP|USD|US\$|\$)\s*[0-9]+(?:[.,][0-9]+)*(?:\s*(?:COP|USD))?\s+en\s+(.{1,120}?)(?=\s+con\s+(?:tu|su|la|tarjeta)\b|\s+el\s+\d{1,2}[/-]\d{1,2}|[.!?](?:\s|$)|$)/gi;
+  const matches = [...compact.matchAll(pattern)].map(match => match[1].trim());
+  const unique = [...new Set(matches)];
+  if (unique.length !== 1 || /https?:|www\.|[<>]/i.test(unique[0])) return undefined;
+  return unique[0];
+}
+export function purchaseDescription(merchant: string): string {
+  const name = /^uber(?:\s*\*\s*rides|\s*trip)?$/i.test(merchant) ? 'Uber'
+    : /^uber\s*\*?\s*eats$/i.test(merchant) ? 'Uber Eats'
+    : /^rappi$/i.test(merchant) ? 'Rappi' : merchant;
+  return `Compra en ${name}`;
+}
 export function candidateFromMessage(message: GmailMessage, account: string): GmailCandidate {
   const header = (name: string) => message.payload?.headers?.find(h => h.name.toLowerCase() === name)?.value || '';
   const subject = header('subject').slice(0, 500);
@@ -68,12 +83,13 @@ export function candidateFromMessage(message: GmailMessage, account: string): Gm
   }));
   // Multiple amounts can be a balance, fees or an invoice: require explicit review instead of choosing one.
   const single = currencies.length === 1 ? currencies[0] : null;
+  const merchant = !rejected && expense && !income ? purchaseMerchant(text) : undefined;
   const receivedAt = new Date(Number(message.internalDate)).toISOString();
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(receivedAt));
   return { messageId: message.id, account, receivedAt, sender: header('from').slice(0, 500), subject,
     excerpt: text.slice(0, 6000), date, currency: single?.currency || '', amount: single ? parseAmount(single.value, single.currency) : '',
     kind: !rejected && income !== expense ? income ? 'income' : 'expense' : '',
-    description: subject.slice(0, 4000), flowType: 'operating' };
+    merchant, description: merchant ? purchaseDescription(merchant) : subject.slice(0, 4000), flowType: 'operating' };
 }
 export function similarMovement(candidate: GmailCandidate, rows: Transaction[]) {
   return rows.some(t => t.date === candidate.date && t.kind === candidate.kind && t.amount === Number(candidate.amount) && (t.currency || 'COP') === candidate.currency);
@@ -85,19 +101,19 @@ async function gmailGet<T>(token: string, path: string, signal?: AbortSignal): P
   if (!response.ok) throw new Error(response.status === 403 ? 'Google no permitió leer el correo. Revisa que hayas autorizado la lectura y que Gmail esté habilitado.' : 'No pudimos leer Gmail. Intenta de nuevo en unos minutos.');
   return response.json();
 }
-export async function scanGmail(token: string, date: string, signal?: AbortSignal, expectedAccount = gmailAccount) {
+export async function scanGmail(token: string, date: string | undefined, signal?: AbortSignal, expectedAccount = gmailAccount, continuation = '') {
   const { emailAddress: account } = await gmailGet<{ emailAddress: string }>(token, 'profile', signal);
   if (expectedAccount && account.toLowerCase() !== expectedAccount.toLowerCase()) throw new Error(`Conectaste otra cuenta. Selecciona ${expectedAccount}.`);
   const ids: string[] = [];
-  let pageToken = '';
+  let pageToken = continuation;
   do {
     const params = new URLSearchParams({ q: gmailQuery(date), maxResults: '100' });
     if (pageToken) params.set('pageToken', pageToken);
     const page = await gmailGet<{ messages?: { id: string }[]; nextPageToken?: string }>(token, `messages?${params}`, signal);
     ids.push(...(page.messages || []).map(m => m.id)); pageToken = page.nextPageToken || '';
-  } while (pageToken && ids.length < 500);
+  } while (date && pageToken && ids.length < 500);
   const candidates: GmailCandidate[] = [];
-  const { start, end } = bogotaDay(date);
+  const { start, end } = date ? bogotaDay(date) : { start: 0, end: Infinity };
   // Limit concurrent requests; an interrupted/failed scan never looks like an empty result.
   for (let i = 0; i < ids.length; i += 5) {
     const batch = await Promise.all(ids.slice(i, i + 5).map(id => gmailGet<GmailMessage>(token, `messages/${encodeURIComponent(id)}?format=full`, signal)));
@@ -106,7 +122,7 @@ export async function scanGmail(token: string, date: string, signal?: AbortSigna
       if (ts >= start && ts < end) candidates.push(candidateFromMessage(message, account));
     }
   }
-  return { account, candidates, truncated: !!pageToken };
+  return { account, candidates, truncated: !!pageToken, nextPageToken: pageToken };
 }
 
 type TokenResponse = { access_token?: string; expires_in?: number; error?: string; scope?: string };

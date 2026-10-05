@@ -41,12 +41,16 @@ try{
    data=p.p_id;
   }
   else if(url.pathname==='/rest/v1/rpc/create_transfer'){const p=route.request().postDataJSON();const a=accounts.find(a=>a.id===p.p_from),b=accounts.find(a=>a.id===p.p_to);for(const [role,kind,amount,currency,account_id] of [['sent','expense',p.p_sent-p.p_fee,a.currency,a.id],['received','income',p.p_received,b.currency,b.id],['fee','expense',p.p_fee,a.currency,a.id]])if(amount>0)movements.push({id:`transfer-${role}`,date:p.p_date,kind,amount,currency,account_id,transfer_id:p.p_id,transfer_role:role,flow_type:role==='fee'?'operating':'transfer',category:role==='fee'?'Servicios':'Otros',context:'Personal',description:role==='fee'?`Comisión: ${p.p_description}`:p.p_description,reserved:0,from_reserve:false,person_tag:'diego'});data=p.p_id;}
-  else if(url.pathname==='/rest/v1/gmail_imports')data=receipts;
+  else if(url.pathname==='/rest/v1/gmail_imports'){
+   const idFilter=url.searchParams.get('message_id');
+   data=receipts.filter(r=>!idFilter || (idFilter.startsWith('eq.') ? r.message_id===idFilter.slice(3) : idFilter.slice(4,-1).split(',').map(id=>id.replaceAll('"','')).includes(r.message_id)));
+   if(url.searchParams.has('limit'))data=data.slice(0,Number(url.searchParams.get('limit')));
+  }
   else if(url.pathname==='/rest/v1/rpc/import_gmail_movement'){
    rpcCalls++;
    const payload=route.request().postDataJSON();
    if(receipts.some(r=>r.message_id===payload.p_email.messageId))data={duplicate:true};
-   else{const transaction={...payload.p_movement,user_id:uid,id:`44444444-4444-4444-8444-${String(rpcCalls).padStart(12,'0')}`};movements.push(transaction);receipts.push({message_id:payload.p_email.messageId});data={duplicate:false,transaction};}
+   else{const transaction={...payload.p_movement,user_id:uid,id:`44444444-4444-4444-8444-${String(rpcCalls).padStart(12,'0')}`};movements.push(transaction);receipts.unshift({message_id:payload.p_email.messageId, account_email:payload.p_email.account.toLowerCase(), subject:payload.p_email.subject, excerpt:payload.p_email.excerpt, received_at:payload.p_email.receivedAt, created_at:new Date().toISOString(), transaction_id:transaction.id});data={duplicate:false,transaction};}
   }
   await route.fulfill({json:data});
  });
@@ -73,14 +77,18 @@ try{
  await page.getByText('2 avisos encontrados.',{exact:false}).waitFor();
  assert.equal(rpcCalls,0,'Buscar no guarda movimientos');
  const cards=page.locator('.gmail-candidate');assert.equal(await cards.count(),2);
- assert.equal(await cards.first().getByLabel('Monto',{exact:true}).inputValue(),'50000');
+ assert.equal(await cards.first().getByLabel('Monto',{exact:true}).inputValue(),'50,000');
+ assert.equal(await cards.first().getByLabel('Concepto',{exact:true}).inputValue(),'Compra en Mercado');
+ await page.getByRole('checkbox',{name:/Mostrar también/}).check();
  await cards.first().getByLabel('Concepto',{exact:true}).fill('Mercado desde Gmail');
  await cards.first().getByRole('button',{name:'Confirmar y guardar'}).click();
- await page.getByText('Ya importado: Compra realizada',{exact:true}).waitFor();
+ await page.locator('.gmail-done').getByText('Ya registrado · Mercado desde Gmail',{exact:true}).waitFor();
  await page.locator('.gmail-candidate').getByRole('button',{name:'Confirmar y guardar'}).click();
- await page.getByText('Ya importado: Pago recibido',{exact:true}).waitFor();assert.equal(rpcCalls,2);
+ await page.locator('.gmail-done').getByText('Ya registrado · Pago recibido',{exact:true}).waitFor();assert.equal(rpcCalls,2);
  await page.getByRole('button',{name:'Revisar movimientos',exact:true}).click();
  await page.getByText('2 avisos encontrados.',{exact:false}).waitFor();assert.equal(await page.locator('.gmail-candidate').count(),0);assert.equal(rpcCalls,2);
+ await page.locator('.gmail-done').getByText('Ya registrado · Mercado desde Gmail',{exact:true}).waitFor();
+ await page.locator('.gmail-done').getByText('$50,000 COP',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Cerrar',exact:true}).click();
  assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
  assert.match(await page.locator('.income-total').textContent(),/601\.000/);
@@ -89,6 +97,7 @@ try{
  await page.getByRole('button',{name:'COP',exact:true}).click();assert.match(await page.locator('.income-total').textContent(),/0.*COP/);
  await page.getByRole('button',{name:'USD',exact:true}).click();assert.match(await page.locator('.income-total').textContent(),/150,25/);
  await page.getByRole('button',{name:'Revisar Gmail',exact:true}).click();
+ await page.getByRole('region',{name:'Últimos correos guardados'}).getByText('Ya registrado · Pago recibido',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Conectar Gmail y revisar'}).click();await page.getByText('2 avisos encontrados.',{exact:false}).waitFor();
  for(const width of [375,320]){await page.setViewportSize({width,height:812});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
  await page.screenshot({path:'artifacts/gmail-mobile.png',fullPage:true});
@@ -122,7 +131,7 @@ try{
  assert.match(await page.locator('.account-list li').filter({hasText:'Bancolombia'}).textContent(),/1\.030\.000/);
  await page.getByRole('button',{name:'Poner saldo real de Bancolombia',exact:true}).click();
  const realBalance=page.getByRole('spinbutton',{name:/^¿Cuánto hay hoy en Bancolombia/});
- await realBalance.fill('1.030.003,93');assert.equal(await realBalance.inputValue(),'1.030.003,93');
+ await realBalance.fill('1.030.003,93');assert.equal(await realBalance.inputValue(),'1,030,003.93');
  await page.getByRole('checkbox',{name:'Ya revisé:',exact:false}).check();
  await page.getByRole('button',{name:'Guardar saldo real',exact:true}).click();
  await page.getByRole('button',{name:'Guardar saldo real',exact:true}).waitFor({state:'hidden'});
@@ -135,6 +144,36 @@ try{
  await page.getByRole('button',{name:'COP',exact:true}).click();
  assert.match(await page.locator('.income-total').textContent(),/0.*COP/);assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
  for(const width of [320,375]){await page.setViewportSize({width,height:812});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+ await page.locator('.bank-balance').getByText('$1,030,003.93 COP',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Revisar Gmail',exact:true}).click();
+ await page.route('https://gmail.googleapis.com/**',async route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname.endsWith('/profile'))return route.fulfill({json:{emailAddress:'personal@example.com'}});
+  if(url.pathname.endsWith('/messages')){
+   assert.equal(url.searchParams.get('q').includes('after:'),false,'Continuar no excluye correos viejos por fecha');
+   return route.fulfill({json:url.searchParams.has('pageToken')?{messages:[{id:'old-pending'}]}:{messages:[{id:'a1'}],nextPageToken:'older'}});
+  }
+  const old=url.pathname.endsWith('/old-pending');
+  return route.fulfill({json:{id:old?'old-pending':'a1',internalDate:old?String(Date.parse('2026-09-01T10:00:00-05:00')):received,payload:{mimeType:'text/plain',headers:[{name:'Subject',value:old?'Bancolombia Compra realizada':'Compra realizada'},{name:'From',value:'Bancolombia <avisos@example.com>'}],body:{data:Buffer.from('Compraste COP 17.000').toString('base64url')}}}});
+ });
+ await page.getByRole('button',{name:'Conectar Gmail y revisar'}).click();
+ await page.getByRole('button',{name:'Cargar más avisos'}).click();
+ const pending=page.locator('.gmail-candidate');
+ await pending.getByText('Pendiente · ID: old-pending',{exact:true}).waitFor();
+ assert.equal(await pending.getByLabel('Monto',{exact:true}).inputValue(),'17,000');
+ assert.equal(await pending.getByLabel('Cuenta del movimiento',{exact:true}).inputValue(),accounts[1].id);
+ await pending.getByRole('button',{name:'Confirmar y guardar'}).click();
+ await page.getByText('Movimiento guardado.',{exact:true}).waitFor();
+ assert.equal(movements.find(m=>m.reference==='gmail:old-pending').account_id,accounts[1].id);
+ await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+ await page.locator('.bank-balance').getByText('$1,013,003.93 COP',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Revisar Gmail',exact:true}).click();
+ await page.getByRole('region',{name:'Últimos correos guardados'}).getByText('Ya registrado · Bancolombia Compra realizada',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Conectar Gmail y revisar'}).click();
+ await page.getByRole('button',{name:'Cargar más avisos'}).click();
+ await page.getByText('Todos los avisos de este lote ya están guardados.',{exact:true}).waitFor();
+ assert.equal(await page.locator('.gmail-candidate').count(),0);
+ await page.getByRole('button',{name:'Cerrar',exact:true}).click();
  assert.deepEqual(errors,[]);
  console.log('OK Gmail: cuenta correcta, revisión antes de guardar, COP/USD, referencias, reintento sin duplicados, desconexión y móvil 320/375. APIs simuladas; no se leyeron correos reales.');
 }finally{await browser?.close();server.kill('SIGTERM');}
