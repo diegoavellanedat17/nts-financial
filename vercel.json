@@ -11,6 +11,15 @@
   "functions": {
     "api/chat.ts": {
       "maxDuration": 60
+    },
+    "api/gmail/cron.ts": {
+      "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/gmail/cron",
+      "schedule": "0 5 * * *"
+    }
+  ]
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { authorizeGmail, gmailAccount, gmailClientId, loadGoogle, scanGmail, similarMovement, type GmailCandidate } from './gmail';
 import { expenseCategories, incomeCategories, normalizeTransaction, today, validateTransaction, type IncomeSource, type Transaction } from './finance';
 import { supabase } from './supabase';
+import GmailSync from './GmailSync';
 
 type Props = { userId?: string; sources: IncomeSource[]; items: Transaction[]; onImported: (transaction: Transaction) => void; onBusy: (busy: boolean) => void };
 export default function GmailImport({ userId, sources, items, onImported, onBusy }: Props) {
@@ -12,6 +13,7 @@ export default function GmailImport({ userId, sources, items, onImported, onBusy
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [pending, setPending] = useState<GmailCandidate[]>([]);
   const [candidates, setCandidates] = useState<GmailCandidate[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
   const controller = useRef<AbortController | null>(null);
@@ -21,6 +23,19 @@ export default function GmailImport({ userId, sources, items, onImported, onBusy
     if (gmailClientId && userId) void loadGoogle().then(() => { if (mounted.current) setGoogleReady(true); }).catch(e => { if (mounted.current) setError(e.message); });
     return () => { mounted.current = false; controller.current?.abort(); };
   }, [userId]);
+  useEffect(() => {
+    if (!userId || !supabase) return;
+    let alive = true;
+    void supabase.from('gmail_sync_reviews').select('candidate').eq('user_id',userId).eq('status','pending').order('created_at',{ascending:false}).limit(100).then(({data,error}) => {
+      if (alive && !error) setPending((data || []).map(r => r.candidate as GmailCandidate));
+    });
+    return () => { alive=false; };
+  },[userId]);
+  async function skipPending(candidate:GmailCandidate) {
+    const {error}=await supabase!.from('gmail_sync_reviews').update({status:'ignored'}).eq('user_id',userId!).eq('account_email',candidate.account).eq('message_id',candidate.messageId);
+    if(error) { setError('No pudimos descartar este aviso.'); return; }
+    setPending(rows=>rows.filter(c=>c.messageId!==candidate.messageId));
+  }
   function working(value: boolean) { setBusy(value); onBusy(value); }
   async function review() {
     if (!userId || !supabase) return;
@@ -62,6 +77,7 @@ export default function GmailImport({ userId, sources, items, onImported, onBusy
       if (!data || typeof data.duplicate !== 'boolean' || (!data.duplicate && !data.transaction)) throw new Error('No pudimos confirmar el guardado. Puedes intentar de nuevo sin duplicarlo.');
       if (!data.duplicate) onImported(normalizeTransaction(data.transaction));
       setDone(previous => new Set([...previous, candidate.messageId]));
+      setPending(previous => previous.filter(c => c.messageId !== candidate.messageId));
       setMessage(data.duplicate ? 'Ese correo ya fue importado. No se creó otro movimiento.' : 'Movimiento guardado.');
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); }
     finally { working(false); }
@@ -78,6 +94,8 @@ export default function GmailImport({ userId, sources, items, onImported, onBusy
   if (!userId) return <p className="modal-copy">Entra a la versión conectada a Supabase para importar movimientos.</p>;
   if (!gmailClientId) return <p className="modal-copy">La conexión con Gmail está en preparación. Mientras tanto puedes registrar tus entradas y salidas.</p>;
   return <div className="gmail-import">
+    <GmailSync userId={userId} />
+    {pending.length > 0 && <div className="gmail-candidates"><h3>Por revisar · {pending.length}</h3>{pending.map(candidate => <CandidateForm key={candidate.messageId} candidate={candidate} sources={sources} items={items} busy={busy} onConfirm={confirm} onSkip={() => { void skipPending(candidate); }} />)}</div>}
     <p className="modal-copy">Busca avisos de pagos, compras y transferencias. Tú decides qué guardar. {gmailAccount && <>Cuenta: <strong>{gmailAccount}</strong>.</>}</p>
     <div className="gmail-controls"><label>Fecha de los avisos<input type="date" value={date} max={today()} required disabled={busy} onChange={e => { setDate(e.target.value); setCandidates([]); setMessage(''); }} /></label>
       <button className="primary" disabled={busy || !googleReady || !date} onClick={review}>{busy ? 'Procesando…' : connection ? 'Revisar movimientos' : 'Conectar Gmail y revisar'}</button>

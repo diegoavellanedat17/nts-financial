@@ -190,7 +190,7 @@ El concepto se escribe directamente en Entrada/Salida y se guarda en `transactio
 
 El botón **Revisar Gmail** abre la autorización de Google y busca avisos del día elegido en horario de Colombia. Los montos ambiguos y las monedas no explícitas requieren revisión. Cada aviso permite corregir tipo, monto, COP/USD, fecha, concepto, categoría y fuente; guardar exige una confirmación por movimiento. Los correos de facturas, rechazos o pagos pendientes nunca se registran solos. No interpreta adjuntos ni reemplaza un extracto bancario. La búsqueda inicial cubre frases frecuentes de avisos de compras/pagos/transferencias y algunos bancos colombianos; se ajustará con ejemplos reales. Hay un límite visible de 500 correos por consulta.
 
-Google concede lectura con `gmail.readonly` mediante Google Identity Services, modelo de token en navegador. El token existe solo en memoria durante la sesión: no se guarda en Supabase, localStorage, Git ni Vercel. Al vencer o recargar hay que volver a conectar; no existe sincronización automática. El botón Desconectar revoca el permiso. La conexión Gmail de Codex es independiente de esta conexión de la app.
+Google concede lectura con `gmail.readonly` mediante Google Identity Services, modelo de token en navegador. El token existe solo en memoria durante la sesión: no se guarda en Supabase, localStorage, Git ni Vercel. Al vencer o recargar hay que volver a conectar; la conexión manual sigue disponible. La sincronización nocturna utiliza una autorización independiente del servidor, descrita abajo. El botón Desconectar revoca el permiso. La conexión Gmail de Codex es independiente de esta conexión de la app.
 
 Para habilitarlo:
 
@@ -272,3 +272,23 @@ El estilo del chat se documenta en `prompts/finance-assistant/SKILL.md` y se inc
 Las transferencias de hoy entre monedas pueden registrarse con el monto recibido y el saldo restante en origen. `create_transfer_from_balance` calcula el débito desde el saldo registrado, verifica que no haya cambiado y reintenta con el mismo ID sin duplicar movimientos. Se guardan saldo antes/después, TRM de referencia del día, cambio efectivo y diferencia frente a TRM en `transfers`. Esa diferencia es informativa: puede incluir costos no desglosados y nunca crea otro gasto. Las comisiones explícitas siguen separadas y se descuentan una sola vez. Para una fecha anterior o sin saldo inicial, se usa «Sé cuánto salió»/modo manual. Los registros anteriores conservan su funcionamiento; cancelar elimina las piernas juntas y conserva el historial. El chat recibe estos metadatos con los filtros del perfil.
 
 El botón **Poner saldo real**, disponible para ambos perfiles, concilia cada cuenta con el banco. Guarda la fecha, saldo previo, saldo observado y diferencia en Supabase; los ajustes aparecen en **Otros · Conciliación**. Están incluidos en el saldo de la cuenta y se excluyen de ingresos, gastos y PyL. El neto y el historial se muestran por moneda, sin sumar COP con USD ni sumar un segundo bolsillo al efectivo. Los saldos bancarios y transferencias admiten dos decimales en COP; los movimientos normales en COP siguen en pesos enteros. El chat recibe el historial completo de conciliaciones del perfil autenticado. Los campos de dinero muestran separadores de miles y coma decimal.
+
+## Sincronización nocturna de Gmail (Diego)
+
+Vercel ejecuta `/api/gmail/cron` diariamente con `0 5 * * *` (medianoche en Colombia; en Hobby puede ejecutarse dentro de esa hora). Solo la cuenta `diego.avellaneda1733@gmail.com` puede conectarse, asociada a la cuenta Bancolombia COP de Diego. Desde «Revisar Gmail» → «Activar revisión automática», Diego autoriza acceso de lectura offline. No requiere dejar la app abierta.
+
+Configuración de Production:
+
+- `GOOGLE_GMAIL_CLIENT_SECRET`: secreto del cliente OAuth Web del proyecto Google. El ID usa `VITE_GOOGLE_GMAIL_CLIENT_ID` ya existente (o `GOOGLE_GMAIL_CLIENT_ID` en servidor).
+- `GMAIL_TOKEN_ENCRYPTION_KEY`: 32 bytes aleatorios en hexadecimal (64 caracteres), exclusivamente en servidor. No rotarla sin migrar los tokens o reconectar Gmail.
+- `CRON_SECRET`: secreto aleatorio para las invocaciones del cron.
+- `GMAIL_APP_ORIGIN`: `https://nts-financial.vercel.app`.
+- Añadir la URI autorizada `https://nts-financial.vercel.app/api/gmail/callback` al cliente Google. Si la aplicación Google sigue en Testing, el refresh token de Gmail vence a los 7 días; revisar el estado de publicación y los requisitos de Google para uso personal antes de esperar continuidad permanente.
+
+Aplicar `20261005170000_gmail_nightly_sync.sql` antes del despliegue. Incluye conexiones cifradas (AES-256-GCM vinculadas al propietario, sin permisos de lectura para el frontend), estados OAuth de uso único con cookie y PKCE, historial de ejecuciones y cola de revisión. Las funciones de importación automática y de bloqueo solo son ejecutables con `service_role`; siguen verificando propietario, cuenta y lease. Las compras y sus comprobantes se guardan en una sola transacción y mantienen la auditoría financiera existente.
+
+La primera revisión empieza a partir de la activación, evitando reimportar movimientos históricos conciliados. Las siguientes revisiones incluyen una ventana de tres días desde la última revisión completa para correos tardíos. El trabajo pagina los resultados y guarda el avance; al alcanzar el límite de tiempo retoma en la próxima ejecución. Los errores no adelantan el cursor de finalización. La clave única del comprobante impide duplicados incluso si el movimiento se eliminó. Las coincidencias con movimientos manuales quedan por revisar.
+
+La primera versión automatiza únicamente compras COP con tarjeta débito *4946 y formato inequívoco de Bancolombia. Conserva fecha real del aviso, comerciante y origen; clasifica Transporte/Servicios cuando es claro y deja los demás en Otros. Transferencias, ingresos, otra tarjeta, moneda incierta y formatos no reconocidos van a «Por revisar», disponibles en el módulo Gmail. No toca saldos conciliados ni convierte transferencias en ingresos. «Desactivar revisión automática» elimina la conexión y detiene nuevas importaciones; se conservan movimientos y comprobantes.
+
+Verificar `/api/gmail/connection` con la sesión de Diego, conectar desde la app y ejecutar el cron con el encabezado `Authorization: Bearer $CRON_SECRET`. Confirmar en `gmail_sync_runs` una ejecución success y que una segunda ejecución no genere comprobantes ni movimientos duplicados. Nunca registrar tokens ni respuestas OAuth en logs. Variables de servidor sin prefijo `VITE_`.
