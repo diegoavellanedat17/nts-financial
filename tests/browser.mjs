@@ -173,8 +173,22 @@ try {
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.match(await page.locator('.daily-balance h1').textContent(), /130,15.*USD/);
+  const chart = page.getByRole('region', { name: 'Gastos por categoría', exact: true });
+  assert.match(await chart.getByRole('img').getAttribute('aria-label'), /20,10.*USD.*100\.0%/);
+  const beforeCategory = await page.evaluate(() => localStorage.getItem('diego-finances-v1'));
+  await chart.getByRole('button', { name: 'Ver gastos de Otros / sin clasificar', exact: true }).click();
+  await chart.locator('.category-detail').getByText('Gasto personal', { exact: true }).waitFor();
+  assert.match(await chart.locator('.category-donut').textContent(), /20,10.*USD/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('diego-finances-v1')), beforeCategory, 'Explorar categorías no modifica el registro');
+  for (const width of [375,320]) {
+    await page.setViewportSize({ width, height: 812 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `Dona sin desbordamiento a ${width}px`);
+  }
+  await chart.getByRole('button', { name: 'Ver total', exact: true }).click();
+
   await page.getByRole('group', { name: 'Moneda del saldo' }).getByRole('button', { name: 'COP', exact: true }).click();
   assert.match(await page.locator('.daily-balance h1').textContent(), /\$\s*0.*COP/);
+  await chart.getByText('Sin gastos registrados este mes en COP.', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Entrada', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('200000');
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
