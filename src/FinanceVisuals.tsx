@@ -7,7 +7,7 @@ export function OfficeChart({ rows, currency }: { rows: Transaction[]; currency:
       <span>Cobró<strong>{money(cash.received, currency)}</strong><i style={{ width: `${cash.received / scale * 100}%` }} /></span>
       <span>Pagó<strong>{money(cash.paid, currency)}</strong><i className="cash-paid" style={{ width: `${cash.paid / scale * 100}%` }} /></span>
     </div>
-    <div className="office-result"><span>{free.net < 0 ? 'Falta cubrir con otros fondos' : 'Queda de los cobros'}<strong className={free.net < 0 ? 'cash-negative' : ''}>{money(Math.abs(free.net), currency)}</strong></span>{free.reserved > 0 && <span className="cash-ratio">{money(free.reserved, currency)}<small>apartado de estos cobros</small></span>}</div>
+    <div className="office-result"><span>{free.net < 0 ? 'Los pagos superaron los cobros libres en' : 'Queda de los cobros libres'}<strong className={free.net < 0 ? 'cash-negative' : ''}>{money(Math.abs(free.net), currency)}</strong></span>{free.reserved > 0 && <span className="cash-ratio">{money(free.reserved, currency)}<small>apartado de estos cobros</small></span>}</div>
     <small className="cash-caption">Cobros del mes menos pagos y dinero apartado. No es utilidad.</small>
   </div>;
 }

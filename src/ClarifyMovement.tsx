@@ -3,6 +3,13 @@ import { suggestedExpenseCategory } from '../lib/clarifications';
 import { expenseCategories, money, type Transaction } from './finance';
 
 export type ClarificationPatch = Pick<Transaction, 'description' | 'context' | 'category' | 'reserved' | 'patient_advance' | 'from_reserve'>;
+export type TreatmentState = 'done' | 'pending' | 'mixed' | '';
+export function TreatmentQuestion({ value, onChange }: { value: TreatmentState; onChange: (next: TreatmentState) => void }) {
+  return <div className="treatment-question"><p>¿Ya entregaste los tratamientos o hay pagos anticipados?</p>
+    <div className="delivery-choices" role="group" aria-label="Estado de los tratamientos">{([['done','Ya entregados'],['pending','Aún pendientes'],['mixed','Hay de ambos']] as const).map(([state,label]) => <button type="button" key={state} aria-pressed={value === state} onClick={() => onChange(state)}>{label}</button>)}</div>
+    {value === 'mixed' && <small>Por ahora apartamos el cobro completo hasta aclarar cada tratamiento.</small>}
+  </div>;
+}
 export function ClarifyMovement({ transaction: t, question, busy, error, onSave }: {
   transaction: Transaction; question: string; busy: boolean; error: string;
   onSave: (patch: ClarificationPatch) => Promise<void>;
@@ -10,7 +17,7 @@ export function ClarifyMovement({ transaction: t, question, busy, error, onSave 
   const [description, setDescription] = useState(t.description);
   const [context, setContext] = useState(t.context);
   const [category, setCategory] = useState(suggestedExpenseCategory(t));
-  const [delivery, setDelivery] = useState<'done' | 'pending' | 'mixed' | ''>('');
+  const [delivery, setDelivery] = useState<TreatmentState>('');
   const [message, setMessage] = useState('');
   function submit(e: FormEvent) {
     e.preventDefault(); setMessage('');
@@ -25,15 +32,14 @@ export function ClarifyMovement({ transaction: t, question, busy, error, onSave 
   }
   return <form className="clarify-form" onSubmit={submit}>
     <p className="clarify-amount">{money(t.amount, t.currency || 'COP')} · {t.date.split('-').reverse().join('/')}</p>
-    <p className="clarify-question">{question}</p>
+    {t.kind === 'expense' && <p className="clarify-question">{question}</p>}
     <fieldset disabled={busy}>
       <label>Concepto<textarea aria-label="Concepto" required maxLength={4000} rows={2} value={description} onChange={e => setDescription(e.target.value)} /></label>
       {t.kind === 'expense' ? <>
         {t.person_tag === 'natalia' && <label>¿Para quién?<select value={context} onChange={e => { const next = e.target.value as Transaction['context']; setContext(next); if (next === 'Personal' && ['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(category)) setCategory('Otros'); }}><option>Personal</option><option>Consultorio</option></select></label>}
         <label>Categoría<select aria-label="Categoría" value={category} onChange={e => setCategory(e.target.value)}>{expenseCategories.filter(c => context !== 'Personal' || !['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(c)).map(c => <option key={c}>{c}</option>)}</select></label>
       </> : <>
-        <div className="delivery-choices" role="group" aria-label="Estado de los tratamientos">{([['done','Ya entregados'],['pending','Aún pendientes'],['mixed','Hay de ambos']] as const).map(([value,label]) => <button type="button" key={value} aria-pressed={delivery === value} onClick={() => setDelivery(value)}>{label}</button>)}</div>
-        {delivery === 'mixed' && <small>Por ahora apartamos el cobro completo hasta aclarar cada tratamiento.</small>}
+        <TreatmentQuestion value={delivery} onChange={setDelivery} />
         {delivery === 'pending' && <small>Se apartarán {money(t.amount, t.currency || 'COP')}. El saldo de la cuenta no cambia.</small>}
       </>}
     </fieldset>

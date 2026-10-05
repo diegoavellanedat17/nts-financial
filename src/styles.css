@@ -208,3 +208,12 @@
 .delivery-choices button[aria-pressed=true] { background: var(--green); color: white; }
 .office-result .cash-ratio { max-width: 45%; overflow-wrap: anywhere; text-align: right; font-size: 13px; }
 @media(max-width: 360px) { .recent-edit .entry-icon { display: none; } }
+.pending-review { padding: 16px; margin-top: 20px; background: #fff8e9; border: 1px solid #e8d4ab; border-radius: 12px; }
+.pending-review > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pending-review > div > span { font-size: 11px; color: #86642a; }
+.pending-review .show-more { margin: 0; padding: 8px; }
+.pending-review > strong { display: block; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; margin: 8px 0; }
+.pending-review > p, .treatment-question > p { font-size: 14px; line-height: 1.6; }
+.pending-review > .primary { margin-top: 14px; }
+.treatment-question { margin-top: 18px; }
+.treatment-question small { display: block; font-size: 12px; line-height: 1.7; margin-top: 12px; color: var(--muted); }

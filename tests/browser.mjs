@@ -71,6 +71,7 @@ try {
   await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('200000');
   await page.getByText('Cambiar fecha o agregar detalles').click();
+  await page.getByRole('button', { name: 'Ya entregados', exact: true }).click();
   await page.locator('input[name=reserved]').fill('50000');
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -202,7 +203,7 @@ try {
   await page.getByLabel('Monto en pesos', { exact: true }).fill('1650000');
   await page.getByRole('button', { name: 'Consultorio', exact: true }).click();
   await page.getByLabel('Concepto', { exact: true }).fill('Abono pendiente caso de prueba');
-  await page.getByLabel('Abono de un tratamiento pendiente').check();
+  await page.getByRole('button', { name: 'Aún pendientes', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('.daily-balance h1').textContent(), balanceBefore);
@@ -258,10 +259,26 @@ try {
   await page.getByRole('button', { name: 'Consultorio', exact: true }).click();
   await page.getByLabel('Concepto', { exact: true }).fill('Pacientes por aclarar');
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
+  await page.getByText('Indica si los tratamientos están entregados o pendientes.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 1, 'No guarda un cobro del consultorio sin responder');
+  await page.getByRole('button', { name: 'Ya entregados', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   const incomesBeforeAnswer = await page.locator('.income-total').textContent();
-  await page.getByRole('button', { name: 'Tabla', exact: true }).click();
-  await page.getByRole('region', { name: 'Tabla de movimientos', exact: true }).getByRole('button', { name: 'Aclarar Pacientes por aclarar', exact: true }).click();
+  // Simulate a legacy payment, as Natalia already has in Supabase.
+  await page.evaluate(() => {
+    const key = 'natalia-finances-v1', data = JSON.parse(localStorage.getItem(key));
+    data.items.find(t => t.description === 'Pacientes por aclarar').category = 'Otros';
+    localStorage.setItem(key, JSON.stringify(data));
+  });
+  await page.reload();
+  const reminder = page.getByRole('region', { name: 'Movimiento por aclarar', exact: true });
+  await reminder.getByText('¿Ya entregaste los tratamientos o hay pagos anticipados?', { exact: true }).waitFor();
+  assert.match(await reminder.textContent(), /Pacientes por aclarar/);
+  await reminder.getByRole('button', { name: 'Después', exact: true }).click();
+  await reminder.waitFor({ state: 'hidden' });
+  await page.reload();
+  await reminder.getByRole('button', { name: 'Responder', exact: true }).click();
   await page.getByRole('button', { name: 'Aún pendientes', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar respuesta', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -270,6 +287,7 @@ try {
   await page.reload();
   const clarified = await page.evaluate(() => JSON.parse(localStorage.getItem('natalia-finances-v1')).items.find(t => t.description === 'Pacientes por aclarar'));
   assert.equal(clarified.amount, 1520876); assert.equal(clarified.reserved, 1520876); assert.equal(clarified.patient_advance, true);
+  assert.doesNotMatch(await page.locator('.pending-review').textContent() || '', /Pacientes por aclarar/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
   console.log('OK: pantalla única, gasto sin nota/fecha/categoría, pagos en distintas fechas, saldo entre meses, consultorio, reservas existentes, edición/eliminación, persistencia, CSV y celular 320/375 px.');
