@@ -14,6 +14,19 @@ try {
   await page.getByLabel('Clave de acceso').fill('1357955');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('heading', { name: '¿Cómo va el consultorio?' }).waitFor();
+  const nataliaChart = page.getByRole('region', { name: 'Gastos por categoría', exact: true });
+  const nataliaScope = nataliaChart.getByRole('group', { name: 'Espacio de los gastos', exact: true });
+  assert.equal(await nataliaScope.getByRole('button', { name: 'Ver gastos personales', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.doesNotMatch(await nataliaChart.getByRole('img').getAttribute('aria-label'), /Laboratorio/);
+  const nataliaCash = await page.locator('.daily-balance h1').textContent();
+  await nataliaScope.getByRole('button', { name: 'Ver gastos del consultorio', exact: true }).click();
+  assert.match(await nataliaChart.getByRole('img').getAttribute('aria-label'), /Laboratorio/);
+  await nataliaChart.getByRole('button', { name: 'Ver gastos de Laboratorio', exact: true }).click();
+  await nataliaChart.locator('.category-detail').getByText('Trabajo de laboratorio', { exact: true }).waitFor();
+  assert.equal(await page.locator('.daily-balance h1').textContent(), nataliaCash);
+  await nataliaScope.getByRole('button', { name: 'Ver gastos personales', exact: true }).click();
+  assert.equal(await nataliaChart.locator('.category-detail').count(), 0);
+
   await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
   await page.getByRole('button', { name: 'Aleja', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();

@@ -244,3 +244,5 @@
 .category-detail small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
 .category-detail strong { font-size: 12px; flex-shrink: 0; }
 @media(max-width:360px) { .category-chart { padding: 14px; } .category-legend button { gap: 7px; padding: 8px 0; } .category-numbers strong { font-size: 11px; } }
+.category-context { margin: 18px 0 0; justify-content: center; }
+.category-context button { min-height: 44px; }
