@@ -128,10 +128,11 @@ try{
  await page.getByRole('button',{name:'Guardar saldo real',exact:true}).waitFor({state:'hidden'});
  await page.locator('.account-list').waitFor({state:'hidden'});
  await page.getByRole('button',{name:/^Mis cuentas/}).click();
- await page.locator('.account-list').getByText('$1.030.003,93 COP',{exact:true}).waitFor();
- assert.match(await page.locator('.account-list li').filter({hasText:'Bancolombia'}).textContent(),/1\.030\.003,93/);
+ await page.locator('.account-list').getByText('$1.030.003 COP',{exact:true}).waitFor();
+ assert.match(await page.locator('.account-list li').filter({hasText:'Bancolombia'}).textContent(),/1\.030\.003/);
+ assert.ok(Math.abs(movements.find(m=>m.balance_check_id)?.amount-3.93)<0.00001,'Los centavos se conservan en el dato conciliado');
  await page.locator('.reconciliation>summary').click();
- assert.match(await page.locator('.reconciliation').textContent(),/3,93/);
+ assert.match(await page.locator('.reconciliation').textContent(),/3 COP/);
  await page.getByRole('button',{name:'COP',exact:true}).click();
  assert.match(await page.locator('.income-total').textContent(),/0.*COP/);assert.match(await page.locator('.expense-total').textContent(),/50\.000/);
  for(const width of [320,375]){await page.setViewportSize({width,height:812});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
