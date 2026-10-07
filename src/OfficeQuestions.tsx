@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { officeQuestions, validateOfficeAnswer, type OfficeAnswer, type OfficeQuestion } from '../lib/officeQuestions';
 import { money, today, type Transaction } from './finance';
 import { MoneyInput } from './MoneyInput';
 import { supabase } from './supabase';
 const storage='natalia-office-answers-v1';
-export default function OfficeQuestions({rows,userId,onPendingChange}: {rows:Transaction[];userId?:string;onPendingChange:(pending:boolean)=>void}) {
+export default function OfficeQuestions({rows,userId,fallback}: {rows:Transaction[];userId?:string;fallback?:ReactNode}) {
  const [answers,setAnswers]=useState<OfficeAnswer[]>([]),[ready,setReady]=useState(false),[dismissed,setDismissed]=useState(false),[error,setError]=useState('');
  useEffect(()=>{
   let active=true;
@@ -20,7 +20,6 @@ export default function OfficeQuestions({rows,userId,onPendingChange}: {rows:Tra
   void load();return()=>{active=false;};
  },[userId]);
  const questions=ready?officeQuestions(rows,answers,today()):[];
- useEffect(()=>{onPendingChange(questions.length>0);},[questions.length,onPendingChange]);
  async function save(q:OfficeQuestion,answer:Record<string,unknown>){
   const invalid=validateOfficeAnswer(q,answer);if(invalid)throw Error(invalid);
   const record={question_key:q.key,kind:q.kind,answer};
@@ -29,7 +28,8 @@ export default function OfficeQuestions({rows,userId,onPendingChange}: {rows:Tra
   setAnswers(previous=>[...previous.filter(a=>a.question_key!==q.key),record]);
  }
  if(error)return <p className="error" role="alert">{error}</p>;
- if(!ready||dismissed||!questions.length)return null;
+ if(!ready||dismissed)return null;
+ if(!questions.length)return <>{fallback}</>;
  return <section className="pending-review office-questions" aria-label="Preguntas del consultorio"><div><span>Para entender tu consultorio · {questions.length} por responder</span><button className="show-more" aria-label="Responder después sobre el consultorio" onClick={()=>setDismissed(true)}>Después</button></div><OfficeQuestionForm key={questions[0].key} question={questions[0]} onSave={answer=>save(questions[0],answer)} /></section>;
 }
 function OfficeQuestionForm({question:q,onSave}:{question:OfficeQuestion;onSave:(answer:Record<string,unknown>)=>Promise<void>}) {

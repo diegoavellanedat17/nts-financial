@@ -326,7 +326,7 @@ try {
   await page.reload();
   const clarified = await page.evaluate(() => JSON.parse(localStorage.getItem('natalia-finances-v1')).items.find(t => t.description === 'Pacientes por aclarar'));
   assert.equal(clarified.amount, 1520876); assert.equal(clarified.reserved, 1520876); assert.equal(clarified.patient_advance, true);
-  assert.doesNotMatch(await page.locator('.pending-review').textContent() || '', /Pacientes por aclarar/);
+  assert.doesNotMatch((await page.getByRole('region', { name: 'Movimiento por aclarar', exact: true }).allTextContents()).join(''), /Pacientes por aclarar/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   // New office questions appear on entry and save context independently of the ledger.
   await page.evaluate(() => {
