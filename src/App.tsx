@@ -20,6 +20,7 @@ import { supabase, supabaseConfigError } from './supabase';
 import { loadSources, readSources, readTransactions } from './data';
 import GmailImport from './GmailImport';
 import GmailSync from './GmailSync';
+import OfficeQuestions from './OfficeQuestions';
 import { useTrm } from './useTrm';
 import { trmSourcePage } from '../lib/trm';
 import { rowsInCop, summarizeInCop } from './finance';
@@ -91,6 +92,7 @@ function Dashboard({ userId, personTag }: { userId?: string; personTag: string }
   const [ready, setReady] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [editing, setEditing] = useState<{ kind: 'income' | 'expense'; transaction: Transaction | null } | null>(null);
+  const [officeQuestionsPending, setOfficeQuestionsPending] = useState(false);
   const [reviewDismissed, setReviewDismissed] = useState(false);
   const [clarifying, setClarifying] = useState<Transaction | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -251,7 +253,8 @@ function Dashboard({ userId, personTag }: { userId?: string; personTag: string }
     {error && !editing && !clarifying && !deleteItem && !resetOpen && !sourcesOpen && <p className="error" role="alert">{error}{loadFailed && <button onClick={() => setReload(r => r + 1)}>Reintentar</button>}</p>}
     {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
     {!ready ? <p className="loading">Cargando…</p> : loadFailed ? <p className="loading">No pudimos cargar tus movimientos.</p> : <>
-      {firstReview && !reviewDismissed && <section className="pending-review" aria-label="Movimiento por aclarar"><div><span>Por aclarar · {pendingReview.length}</span><button className="show-more" onClick={() => setReviewDismissed(true)}>Después</button></div><strong>{firstReview.description} · {money(firstReview.amount, firstReview.currency || 'COP')}</strong><p>{clarificationQuestion(firstReview, personTag)}</p><button className="primary" onClick={() => { setError(''); setClarifying(firstReview); }}>Responder</button></section>}
+      {isDental && <OfficeQuestions rows={items} userId={userId} onPendingChange={setOfficeQuestionsPending} />}
+      {firstReview && !reviewDismissed && !officeQuestionsPending && <section className="pending-review" aria-label="Movimiento por aclarar"><div><span>Por aclarar · {pendingReview.length}</span><button className="show-more" onClick={() => setReviewDismissed(true)}>Después</button></div><strong>{firstReview.description} · {money(firstReview.amount, firstReview.currency || 'COP')}</strong><p>{clarificationQuestion(firstReview, personTag)}</p><button className="primary" onClick={() => { setError(''); setClarifying(firstReview); }}>Responder</button></section>}
       <section className="daily-balance"><div className="currency-switch" role="group" aria-label="Moneda del saldo">{(['total','COP','USD'] as const).map(c => <button key={c} aria-pressed={balanceView === c} onClick={() => setBalanceView(c)}>{c === 'total' ? 'Total en COP' : c}</button>)}</div><p>{consolidated ? 'Todo tu dinero, en pesos' : 'Hoy tienes disponible'}</p><h1>{totalReady ? money(summary.available, currency) : '—'}</h1>{consolidated && <div className="trm-note">{trm.rate ? <><a href={trmSourcePage} target="_blank" rel="noreferrer">TRM: 1 USD = {new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(trm.rate.cop_per_usd)} COP</a><span>Vigente {new Intl.DateTimeFormat('es-CO').format(new Date(`${trm.rate.date}T12:00:00`))}</span></> : trm.error ? <><span role="status">{trm.error}</span><button onClick={trm.retry}>Reintentar TRM</button></> : <span>Cargando TRM de hoy…</span>}</div>}{isDental && totalReady && summary.reserved > 0 && <small>{money(summary.reserved, currency)} aparte para tratamientos.</small>}</section>
       <div className="movement-totals" aria-label="Totales de este mes"><div><span>Ingresos · este mes</span><strong className="income-total">{totalReady ? money(summary.income, currency) : '—'}</strong></div><div><span>Gastos · este mes</span><strong className="expense-total">{totalReady ? money(summary.expenses, currency) : '—'}</strong></div></div>
       <div className="quick-actions"><button className="quick-action received" onClick={() => open('income')}><ArrowDownLeft size={24} /><span>{isDental ? 'Recibí dinero' : 'Entrada'}</span></button><button className="quick-action paid" onClick={() => open('expense')}><ArrowUpRight size={24} /><span>{isDental ? 'Pagué algo' : 'Salida'}</span></button></div>

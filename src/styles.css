@@ -252,3 +252,9 @@
 .gmail-sync p,.gmail-sync small,.sync-status { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .gmail-sync small { display: block; margin-top: 8px; }
 .sync-status { text-align: center; margin: 16px 0; }
+
+.office-questions form label { display: block; font-size: 12px; margin-top: 14px; }
+.office-questions textarea,.office-questions select { width: 100%; min-width: 0; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: #293f36; font: inherit; }
+.office-questions form small { display: block; margin: 12px 0; color: var(--muted); font-size: 11px; }
+.office-questions fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.office-questions .money-input { margin-top: 8px; }

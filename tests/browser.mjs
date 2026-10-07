@@ -329,6 +329,33 @@ try {
   assert.equal(clarified.amount, 1520876); assert.equal(clarified.reserved, 1520876); assert.equal(clarified.patient_advance, true);
   assert.doesNotMatch(await page.locator('.pending-review').textContent() || '', /Pacientes por aclarar/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  // New office questions appear on entry and save context independently of the ledger.
+  await page.evaluate(() => {
+    const data=JSON.parse(localStorage.getItem('natalia-finances-v1'));
+    const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    data.items.push({id:crypto.randomUUID(),date,kind:'income',amount:1511547,currency:'COP',context:'Consultorio',category:'Tratamiento',description:'Consultorio · Incluye tratamientos entregados y pendientes; cobro apartado hasta aclarar cada caso.',reserved:1511547,patient_advance:true,from_reserve:false,person_tag:'natalia'});
+    data.items.push({id:crypto.randomUUID(),date,kind:'expense',amount:180000,currency:'COP',context:'Consultorio',category:'Servicios',description:'Pago Dianita auxiliar',reserved:0,from_reserve:false,person_tag:'natalia'});
+    localStorage.setItem('natalia-finances-v1',JSON.stringify(data));localStorage.removeItem('natalia-office-answers-v1');
+  });
+  await page.reload();
+  const officeQuestions=page.getByRole('region',{name:'Preguntas del consultorio',exact:true});
+  await officeQuestions.getByText('De este cobro, ¿cuánto corresponde a tratamientos ya terminados?',{exact:true}).waitFor();
+  await officeQuestions.getByRole('button',{name:'Responder después sobre el consultorio',exact:true}).click();
+  await officeQuestions.waitFor({state:'hidden'});
+  await page.reload();
+  await officeQuestions.getByLabel('Monto de tratamientos terminados',{exact:true}).waitFor();
+  const beforeOfficeAnswers=await page.evaluate(()=>localStorage.getItem('natalia-finances-v1'));
+  await officeQuestions.getByLabel('Monto de tratamientos terminados',{exact:true}).fill('500000');
+  await officeQuestions.getByRole('button',{name:'Guardar respuesta del consultorio',exact:true}).click();
+  await officeQuestions.getByLabel('Tratamientos y pagos pendientes',{exact:true}).fill('Falta entregar dos casos; laboratorio de varios casos, costo aún pendiente.');
+  await officeQuestions.getByRole('button',{name:'Guardar respuesta del consultorio',exact:true}).click();
+  await officeQuestions.getByLabel('Periodo del pago a la auxiliar',{exact:true}).selectOption('week');
+  await officeQuestions.getByRole('button',{name:'Guardar respuesta del consultorio',exact:true}).click();
+  await officeQuestions.waitFor({state:'hidden'});
+  assert.equal(await page.evaluate(()=>localStorage.getItem('natalia-finances-v1')),beforeOfficeAnswers,'Responder no modifica movimientos ni reservas');
+  await page.reload();await page.getByRole('heading',{name:'¿Cómo va el consultorio?',exact:true}).waitFor();
+  assert.equal(await officeQuestions.count(),0,'Las preguntas respondidas no se repiten');
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('natalia-office-answers-v1')).length),3);
   assert.deepEqual(errors, []);
   console.log('OK: pantalla única, gasto sin nota/fecha/categoría, pagos en distintas fechas, saldo entre meses, consultorio, reservas existentes, edición/eliminación, persistencia, CSV y celular 320/375 px.');
 } finally { await browser.close(); }
