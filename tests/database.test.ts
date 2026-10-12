@@ -18,6 +18,7 @@ beforeAll(async () => {
   await db.exec(schema);
   await db.exec(readFileSync(new URL('../supabase/migrations/20261005160000_debt_category.sql', import.meta.url), 'utf8'));
   await db.exec(readFileSync(new URL('../supabase/migrations/20261005161000_car_category.sql', import.meta.url), 'utf8'));
+  await db.exec(readFileSync(new URL('../supabase/migrations/20261012000000_gifts_office_categories.sql', import.meta.url), 'utf8'));
   await db.exec(`insert into public.income_sources(id,user_id,name,context) values ('${source}','${alice}','Clínica Real','Clínica 1');
 insert into public.transactions(id,user_id,date,competence_date,kind,amount,context,category,description,source_id) values
 (gen_random_uuid(),'${alice}','2026-10-05','2026-09-20','income',1000000,'Clínica 1','Honorarios','Trabajo septiembre','${source}'),
@@ -38,6 +39,12 @@ describe('Base de reportes y seguridad de Supabase (Postgres local)', () => {
     await db.exec("update public.transactions set category='Carro' where description='Mercado'");
     const car = await db.query<{ amount: string }>("select amount::text from public.transactions where category='Carro'");
     expect(car.rows).toEqual([{ amount: '100000' }]);
+    for (const category of ['Regalos', 'Oficina']) {
+      await db.exec(`update public.transactions set category='${category}' where description='Mercado'`);
+      const expense = await db.query<{ amount: string }>(`select amount::text from public.transactions where category='${category}'`);
+      expect(expense.rows).toEqual([{ amount: '100000' }]);
+      await expect(db.exec(`update public.transactions set category='${category}' where kind='income'`)).rejects.toThrow();
+    }
     const after = await db.query<{ total: string }>("select sum(amount)::text as total from public.transactions");
     expect(after.rows).toEqual(before.rows);
     await expect(db.exec("update public.transactions set category='Deudas' where kind='income'")).rejects.toThrow();
