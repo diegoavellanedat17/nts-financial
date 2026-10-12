@@ -276,4 +276,8 @@
 .general-categories li>div:first-child { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
 .general-bar { height:5px; background:#eef2ea; border-radius:8px; margin-top:8px; overflow:hidden; }
 .general-bar span { display:block; height:100%; background:var(--green); border-radius:8px; }
+.general-income-list { list-style:none; padding:0; margin:0; }
+.general-income-list li { display:flex; justify-content:space-between; gap:12px; padding:6px 0; font-size:13px; }
+.general-income-list strong { color:var(--green); overflow-wrap:anywhere; }
+.general-pending { font-size:12px; color:var(--muted); line-height:1.6; margin:12px 0; }
 @media(max-width:380px) { .general-heading { align-items:flex-start; flex-direction:column; } }
