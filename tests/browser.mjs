@@ -30,7 +30,18 @@ try {
   await page.getByRole('button', { name: 'Recibí dinero', exact: true }).click();
   await page.getByRole('button', { name: 'Aleja', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
-  assert.equal(await page.getByRole('navigation').count(), 0, 'Una sola pantalla sin navegación de dashboard');
+  const spaces = page.getByRole('navigation', { name: 'Espacio de finanzas', exact: true });
+  await spaces.getByRole('button', { name: 'General', exact: true }).click();
+  await page.getByRole('heading', { name: 'Diego y Natalia', exact: true }).waitFor();
+  assert.equal(await page.getByRole('heading', { name: 'Movimientos', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Abrir asistente de finanzas' }).count(), 0);
+  await page.getByText('General está disponible al iniciar sesión.', { exact: true }).waitFor();
+  for (const width of [375, 320]) {
+    await page.setViewportSize({ width, height: 812 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `General sin desbordamiento a ${width}px`);
+  }
+  await spaces.getByRole('button', { name: 'Mi dinero', exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1050 });
   await page.screenshot({ path: 'artifacts/desktop.png', fullPage: true });
   for (const width of [375, 320]) {
     await page.setViewportSize({ width, height: 812 });

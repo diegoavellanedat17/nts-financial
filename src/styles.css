@@ -258,3 +258,22 @@
 .office-questions form small { display: block; margin: 12px 0; color: var(--muted); font-size: 11px; }
 .office-questions fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .office-questions .money-input { margin-top: 8px; }
+
+.page-tabs { display:flex; gap:24px; border-bottom:1px solid var(--line); margin:0 0 28px; }
+.page-tabs button { border:0; border-radius:0; background:transparent; color:var(--muted); padding:10px 2px; border-bottom:2px solid transparent; }
+.page-tabs button[aria-current="page"] { color:var(--green); border-bottom-color:var(--green); }
+.general-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.general-heading h2 { font-size:20px; margin:0; }
+.general-heading input { width:150px; max-width:100%; }
+.general-summary h3 { font-size:16px; }
+.general-legend,.general-categories { list-style:none; margin:0; padding:0; }
+.general-legend li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; }
+.general-legend li>span { display:flex; align-items:center; gap:8px; }
+.general-legend i { width:10px; height:10px; border-radius:50%; }
+.general-legend strong { text-align:right; font-size:14px; }
+.general-legend small { display:block; color:var(--muted); font-weight:normal; margin-top:4px; }
+.general-categories li { padding:10px 0; }
+.general-categories li>div:first-child { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
+.general-bar { height:5px; background:#eef2ea; border-radius:8px; margin-top:8px; overflow:hidden; }
+.general-bar span { display:block; height:100%; background:var(--green); border-radius:8px; }
+@media(max-width:380px) { .general-heading { align-items:flex-start; flex-direction:column; } }
