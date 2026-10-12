@@ -26,6 +26,7 @@ beforeAll(async()=>{
  insert into public.transactions(user_id,person_tag,kind,category,currency,amount,flow_type,context,date,transfer_id,transfer_role) values('${diego}','diego','expense','Servicios','COP',5,'operating','Personal',(now() at time zone 'America/Bogota')::date,'${diego}','fee');`);
  await db.exec(readFileSync(new URL('../supabase/migrations/20261012010000_general_summary.sql',import.meta.url),'utf8'));
  await db.exec(readFileSync(new URL('../supabase/migrations/20261012020000_general_office_advances.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../supabase/migrations/20261012030000_general_personal_expenses.sql',import.meta.url),'utf8'));
  await db.exec(`insert into public.transactions(user_id,person_tag,kind,category,currency,amount,flow_type,context,date,reserved,reserve_release_date) values
  ('${natalia}','natalia','income','Tratamiento','COP',100,'operating','Consultorio',(now() at time zone 'America/Bogota')::date,100,null),
  ('${natalia}','natalia','income','Tratamiento','COP',200,'operating','Consultorio',(now() at time zone 'America/Bogota')::date,200,(now() at time zone 'America/Bogota')::date),
@@ -33,15 +34,16 @@ beforeAll(async()=>{
 },20000);
 afterAll(async()=>{await db?.close();});
 describe('General: totales compartidos y abonos apartados',()=>{
- it('ambos ven los mismos agregados, mantienen privado el detalle y incluyen consultorio y excluyen transferencias, conciliaciones y fechas futuras',async()=>{
+ it('ambos ven los mismos agregados, mantienen privado el detalle y incluyen ingresos del consultorio y excluyen sus gastos, transferencias, conciliaciones y fechas futuras',async()=>{
   let previous:unknown;
   for(const owner of [diego,natalia]){
    await db.exec(`set role authenticated;select set_config('app.user_id','${owner}',false)`);
    const result=await db.query(`select * from public.general_summary(to_char(now() at time zone 'America/Bogota','YYYY-MM'))`);
-   expect(result.rows).toHaveLength(6);
+   expect(result.rows).toHaveLength(5);
    expect(result.rows.every(r=>Object.keys(r as object).sort().join(',')==='amount,category,currency,kind,pending_amount,person_tag')).toBe(true);
-   expect(result.rows.map(r=>(r as {amount:string}).amount)).toEqual(['100','5','2','40','1299','300']);
+   expect(result.rows.map(r=>(r as {amount:string}).amount)).toEqual(['100','5','2','1299','300']);
    const officeIncome=result.rows.find(r=>(r as {category:string;kind:string}).category==='Consultorio'&&(r as {kind:string}).kind==='income');
+   expect(result.rows.some(r=>(r as {category:string;kind:string}).category==='Consultorio'&&(r as {kind:string}).kind==='expense')).toBe(false);
    expect(officeIncome).toMatchObject({amount:'1299',pending_amount:'100'});
    expect(result.rows.filter(r=>(r as {pending_amount:string}).pending_amount!=='0')).toHaveLength(1);
    if(previous)expect(result.rows).toEqual(previous);previous=result.rows;

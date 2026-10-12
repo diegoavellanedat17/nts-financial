@@ -25,7 +25,7 @@ export function General({ userId }: { userId?: string }) {
  return <section className="general-summary" aria-label="Resumen general de Diego y Natalia">
   <div className="general-heading"><h2>Diego y Natalia</h2><label><span className="sr-only">Mes de General</span><input type="month" value={month} max={today().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}} /></label></div>
   <div className="currency-switch" role="group" aria-label="Moneda de General">{(['total','COP','USD'] as const).map(c=><button key={c} aria-pressed={view===c} onClick={()=>setView(c)}>{c==='total'?'Total en COP':c}</button>)}</div>
-  <p className="empty-note">Personal y consultorio · Solo totales.</p>
+  <p className="empty-note">Todos los ingresos · Solo gastos personales.</p>
   {loading?<p role="status">Cargando…</p>:error?<p role="alert">{error}{userId&&<button className="show-more" onClick={()=>setAttempt(n=>n+1)}>Reintentar</button>}</p>:!ready?<p role="status">{trm.error||'Cargando TRM…'}{trm.error&&<button className="show-more" onClick={trm.retry}>Reintentar TRM</button>}</p>:<>
    <div className="movement-totals"><div><span>Ingresos de ambos</span><strong className="income-total">{money(income,currency)}{pending>0&&<sup aria-label="Incluye abonos pendientes">*</sup>}</strong></div><div><span>Gastos de ambos</span><strong className="expense-total">{money(expense,currency)}</strong></div></div>
    <ul className="general-income-list">{incomes.map(p=><li key={p.name}><span>Ingresos {p.name}{p.pending&&'*'}</span><strong>{money(p.amount,currency)}</strong></li>)}</ul>
