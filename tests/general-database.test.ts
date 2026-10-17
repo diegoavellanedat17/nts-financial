@@ -28,6 +28,7 @@ beforeAll(async()=>{
  await db.exec(readFileSync(new URL('../supabase/migrations/20261012020000_general_office_advances.sql',import.meta.url),'utf8'));
  await db.exec(readFileSync(new URL('../supabase/migrations/20261012030000_general_personal_expenses.sql',import.meta.url),'utf8'));
  await db.exec(readFileSync(new URL('../supabase/migrations/20261013010000_general_plans_health.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../supabase/migrations/20261017010000_general_python.sql',import.meta.url),'utf8'));
  await db.exec(`insert into public.transactions(user_id,person_tag,kind,category,currency,amount,flow_type,context,date,reserved,reserve_release_date) values
  ('${natalia}','natalia','income','Tratamiento','COP',100,'operating','Consultorio',(now() at time zone 'America/Bogota')::date,100,null),
  ('${natalia}','natalia','income','Tratamiento','COP',200,'operating','Consultorio',(now() at time zone 'America/Bogota')::date,200,(now() at time zone 'America/Bogota')::date),
@@ -52,14 +53,15 @@ describe('General: totales compartidos y abonos apartados',()=>{
    expect(direct.rows.every(r=>r.user_id===owner)).toBe(true);
   }
  });
- it('conserva Planes y Salud como categorías generales distintas sin mover el dinero',async()=>{
+ it('conserva Planes, Salud y Python como categorías generales distintas sin mover el dinero',async()=>{
   await db.exec('reset role');
   await db.exec(`insert into public.transactions(user_id,person_tag,kind,category,currency,amount,flow_type,context,date) values
    ('${diego}','diego','expense','Planes','COP',50,'operating','Personal',(now() at time zone 'America/Bogota')::date),
-   ('${natalia}','natalia','expense','Salud','COP',80,'operating','Personal',(now() at time zone 'America/Bogota')::date);`);
+   ('${natalia}','natalia','expense','Salud','COP',80,'operating','Personal',(now() at time zone 'America/Bogota')::date),
+   ('${diego}','diego','expense','Python','COP',65,'operating','Personal',(now() at time zone 'America/Bogota')::date);`);
   await db.exec(`set role authenticated;select set_config('app.user_id','${diego}',false)`);
-  const result=await db.query<{category:string;amount:string}>(`select category,amount::text from public.general_summary(to_char(now() at time zone 'America/Bogota','YYYY-MM')) where category in ('Planes','Salud') order by category`);
-  expect(result.rows).toEqual([{category:'Planes',amount:'50'},{category:'Salud',amount:'80'}]);
+  const result=await db.query<{category:string;amount:string}>(`select category,amount::text from public.general_summary(to_char(now() at time zone 'America/Bogota','YYYY-MM')) where category in ('Planes','Salud','Python') order by category`);
+  expect(result.rows).toEqual([{category:'Planes',amount:'50'},{category:'Python',amount:'65'},{category:'Salud',amount:'80'}]);
  });
  it('rechaza otras personas, usuarios sin sesión, meses inválidos y acceso anónimo',async()=>{
   await db.exec(`set role authenticated;select set_config('app.user_id','${outsider}',false)`);
