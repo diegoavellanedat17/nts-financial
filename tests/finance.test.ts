@@ -1,6 +1,6 @@
 import { today } from '../src/finance';
 import { describe, expect, it } from 'vitest';
-import { exportCsv, spendingByCategory, summarize, validateTransaction, type Transaction } from '../src/finance';
+import { exportCsv, money, spendingByCategory, summarize, validateTransaction, type Transaction } from '../src/finance';
 const income: Transaction = { id: '1', date: '2026-09-15', kind: 'income', amount: 1000000, reserved: 400000, context: 'Consultorio', category: 'Tratamiento', description: 'Abono', from_reserve: false };
 const expense: Transaction = { ...income, id: '2', date: '2026-10-01', kind: 'expense', amount: 150000, reserved: 0, from_reserve: true, category: 'Laboratorio', description: 'Laboratorio' };
 describe('Disponible y reservas', () => {
@@ -40,6 +40,14 @@ describe('Validación y exportación', () => {
     const csv = exportCsv([{ ...income, description: '=1+1;"test"' }]);
     expect(csv).toContain('"\'=1+1;""test"""');
     expect(csv).toContain('Monto');
+  });
+  it('conserva centavos de un cargo bancario importado y los oculta al mostrar pesos', () => {
+    const bank = { ...expense, amount: 31672.9, reserved: 0, reference: 'gmail:bank-alert', currency: 'COP' as const };
+    expect(validateTransaction(bank)).toBeNull();
+    expect(validateTransaction({ ...bank, amount: 31672.901 })).not.toBeNull();
+    expect(validateTransaction({ ...bank, reference: '' })).not.toBeNull();
+    expect(money(bank.amount, 'COP')).toBe('$31.672 COP');
+    expect(exportCsv([bank])).toContain('31672.9');
   });
 });
 

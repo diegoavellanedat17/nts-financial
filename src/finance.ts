@@ -63,7 +63,8 @@ export function validateTransaction(t: Transaction): string | null {
   if (t.reserve_release_date && (t.kind !== 'income' || !t.reserved || !/^\d{4}-\d{2}-\d{2}$/.test(t.reserve_release_date) || t.reserve_release_date < t.date || Number.isNaN(Date.parse(t.reserve_release_date)))) return 'La fecha de liberación no es válida.';
   const currency = t.currency || 'COP';
   if (!['COP','USD'].includes(currency)) return 'Selecciona COP o USD.';
-  const validPrecision = (value: number) => currency === 'COP' ? Number.isSafeInteger(value) : Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
+  const importedCop = currency === 'COP' && t.reference?.startsWith('gmail:') && t.reserved === 0;
+  const validPrecision = (value: number) => currency === 'COP' && !importedCop ? Number.isSafeInteger(value) : Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
   if (!validPrecision(t.amount) || t.amount <= 0 || t.amount > 999_999_999) return currency === 'USD' ? 'Ingresa un monto positivo de hasta 2 decimales.' : 'Ingresa un monto entero entre $1 y $999.999.999.';
   if (!validPrecision(t.reserved) || t.reserved < 0 || t.reserved > t.amount) return 'El dinero separado no puede superar el ingreso.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t.date) || Number.isNaN(Date.parse(t.date)) || new Date(`${t.date}T12:00:00Z`).toISOString().slice(0, 10) !== t.date) return 'Selecciona una fecha válida.';
