@@ -25,7 +25,7 @@ try {
   await expect(hogar).toHaveAttribute('placeholder',person==='diego'?'10.500.000':'4.300.000');
   await hogar.fill(person==='diego'?'10500000':'4300000');
   await expect(hogar.locator('..').locator('[data-symbol]')).toHaveAttribute('data-symbol','$');
-  await expect(area.getByRole('textbox',{name:'Detalle del presupuesto de Hogar'})).toHaveAttribute('placeholder',/sofá.*1.400.000/);
+  await expect(area.getByRole('textbox',{name:'Detalle del presupuesto de Hogar'})).toHaveCount(0);
   const transactions=await page.evaluate(person=>localStorage.getItem(`${person}-finances-v1`),person);
   await area.getByRole('button',{name:'Guardar presupuesto',exact:true}).click();
   await expect(area.getByRole('status')).toHaveText('Presupuesto guardado.');
