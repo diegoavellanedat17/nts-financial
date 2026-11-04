@@ -24,6 +24,10 @@ export function encodePlan(plan: CategoryPlan) {
 export function decodePlan(body: string, month: string): CategoryPlan {
   if(!body.startsWith(budgetNotePrefix))throw Error('No pudimos leer este presupuesto.');
   const plan=JSON.parse(body.slice(budgetNotePrefix.length)) as CategoryPlan;
+  // Extend existing saved plans without altering their limits or monthly totals.
+  if(plan?.version===1 && plan.limits && typeof plan.limits==='object') {
+    for(const category of ['Mercado','Tarjeta de crédito']) if(!Object.hasOwn(plan.limits,category)) plan.limits[category]=0;
+  }
   if(!validPlan(plan)||plan.month!==month)throw Error('El presupuesto guardado no es válido.');
   return plan;
 }

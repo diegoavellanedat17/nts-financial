@@ -1,5 +1,5 @@
 import { expect,it } from 'vitest';
-import { budgetNoteId,budgetProgress,decodePlan,encodePlan,suggestedPlan } from '../lib/categoryBudgets';
+import { budgetNoteId,budgetNotePrefix,budgetProgress,decodePlan,encodePlan,suggestedPlan } from '../lib/categoryBudgets';
 import type { Transaction } from '../src/finance';
 it('incluye los pagos confirmados en noviembre y no repite nevera ni sofás en diciembre',()=>{
  const diego=suggestedPlan('diego','2026-11'),natalia=suggestedPlan('natalia','2026-11');
@@ -31,4 +31,12 @@ it('usa solo gastos personales COP del mes hasta hoy, con centavos exactos, aler
  expect(get([...rows,{...base,amount:20000}])).toMatchObject({spent:100000.9,remaining:-0.9,state:'over'});
  expect(budgetProgress(rows,plan,'2026-11-03').find(p=>p.category==='Otros')).toMatchObject({spent:50,limit:0,remaining:-50,state:'over',percent:100});
  expect(get([{...base,amount:100000}])).toMatchObject({remaining:0,state:'near',percent:100});
+});
+
+it('abre presupuestos previos con las nuevas categorías en cero sin cambiar los topes existentes',()=>{
+ const old=suggestedPlan('natalia','2026-11');delete old.limits.Mercado;delete old.limits['Tarjeta de crédito'];old.limits.Compras=432100;
+ const restored=decodePlan(budgetNotePrefix+JSON.stringify(old),'2026-11');
+ expect(restored.limits.Mercado).toBe(0);expect(restored.limits['Tarjeta de crédito']).toBe(0);expect(restored.limits.Compras).toBe(432100);
+ expect(Object.values(restored.limits).reduce((a,b)=>a+b,0)).toBe(Object.values(old.limits).reduce((a,b)=>a+b,0));
+ delete old.limits.Hogar;expect(()=>decodePlan(budgetNotePrefix+JSON.stringify(old),'2026-11')).toThrow();
 });

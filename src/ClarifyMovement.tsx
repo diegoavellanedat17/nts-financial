@@ -38,6 +38,7 @@ export function ClarifyMovement({ transaction: t, question, busy, error, onSave 
       {t.kind === 'expense' ? <>
         {t.person_tag === 'natalia' && <label>¿Para quién?<select value={context} onChange={e => { const next = e.target.value as Transaction['context']; setContext(next); if (next === 'Personal' && ['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(category)) setCategory('Otros'); }}><option>Personal</option><option>Consultorio</option></select></label>}
         <label>Categoría<select aria-label="Categoría" value={category} onChange={e => setCategory(e.target.value)}>{expenseCategories.filter(c => context !== 'Personal' || !['Laboratorio', 'Materiales', 'Arriendo consultorio'].includes(c)).map(c => <option key={c}>{c}</option>)}</select></label>
+        {category === 'Tarjeta de crédito' && <p className="payment-hint">Para pagos al banco. Revisa si ya registraste las compras como gastos antes de sumar también este pago.</p>}
       </> : <>
         <TreatmentQuestion value={delivery} onChange={setDelivery} />
         {delivery === 'pending' && <small>Se apartarán {money(t.amount, t.currency || 'COP')}. El saldo de la cuenta no cambia.</small>}
