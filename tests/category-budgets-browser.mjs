@@ -17,10 +17,15 @@ try {
   const area=page.getByRole('region',{name:'Presupuesto personal por categoría',exact:true});
   await area.getByRole('button',{name:'Crear presupuesto',exact:true}).click();
   await expect(area.getByRole('spinbutton',{name:'Tope de Hogar',exact:true})).toHaveValue(person==='diego'?'10.500.000':'4.300.000');
-  await expect(area.getByRole('spinbutton',{name:'Pago fijo de Sala / sofá',exact:true})).toHaveValue('1.400.000');
-  await area.getByRole('spinbutton',{name:'Pago fijo de Sala / sofá',exact:true}).fill('1500000');
-  await expect(area.getByRole('spinbutton',{name:'Tope de Hogar',exact:true})).toHaveValue(person==='diego'?'10.600.000':'4.400.000');
-  await area.getByRole('spinbutton',{name:'Pago fijo de Sala / sofá',exact:true}).fill('1400000');
+  await expect(area.getByText('Hogar · pagos fijos',{exact:true})).toHaveCount(0);
+  const hogar=area.getByRole('spinbutton',{name:'Tope de Hogar',exact:true});
+  await hogar.fill('6500000');
+  await expect(hogar).toHaveValue('6.500.000');
+  await hogar.fill('');
+  await expect(hogar).toHaveAttribute('placeholder',person==='diego'?'10.500.000':'4.300.000');
+  await hogar.fill(person==='diego'?'10500000':'4300000');
+  await expect(hogar.locator('..').locator('[data-symbol]')).toHaveAttribute('data-symbol','$');
+  await expect(area.getByRole('textbox',{name:'Detalle del presupuesto de Hogar'})).toHaveAttribute('placeholder',/sofá.*1.400.000/);
   const transactions=await page.evaluate(person=>localStorage.getItem(`${person}-finances-v1`),person);
   await area.getByRole('button',{name:'Guardar presupuesto',exact:true}).click();
   await expect(area.getByRole('status')).toHaveText('Presupuesto guardado.');
@@ -36,7 +41,6 @@ try {
   await page.reload();
   await page.getByRole('button',{name:'Presupuesto',exact:true}).click();
   await expect(compras).toContainText('Te pasaste $50.000,90 COP');
-  await expect(area.getByRole('region',{name:'Pagos fijos del mes'})).toContainText('$1.400.000');
   await page.getByLabel('¿Qué mes quieres ver?').selectOption('2026-10');
   await expect(area.getByRole('button',{name:'Crear presupuesto',exact:true})).toBeVisible();
   await page.getByLabel('¿Qué mes quieres ver?').selectOption('2026-11');

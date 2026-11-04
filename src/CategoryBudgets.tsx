@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { budgetNoteId, budgetProgress, fixedHomePayments, decodePlan, encodePlan, personalBudgetCategories, suggestedPlan, type CategoryPlan } from '../lib/categoryBudgets';
+import { budgetNoteId, budgetProgress, decodePlan, encodePlan, personalBudgetCategories, suggestedPlan, type CategoryPlan } from '../lib/categoryBudgets';
 import { supabase } from './supabase';
 import { money, today, type Transaction } from './finance';
 import { monthLabel } from './MonthFilter';
@@ -28,7 +28,7 @@ export function CategoryBudgets({ userId, personTag, month, items }: { userId?: 
     }catch{if(active)setLoadError('No pudimos cargar tu presupuesto. Intenta de nuevo.');}finally{if(active)setReady(true);}})();
     return()=>{active=false;};
   },[userId,personTag,month,localKey,attempt]);
-  async function save(e:FormEvent){e.preventDefault();if(!draft)return;if((draft.homePayments||[]).reduce((s,p)=>s+p.amount,0)>draft.limits.Hogar){setError('El tope de Hogar debe cubrir sus pagos fijos. Ajusta el total o los pagos.');return;}setBusy(true);setError('');setNotice('');
+  async function save(e:FormEvent){e.preventDefault();if(!draft)return;setBusy(true);setError('');setNotice('');
     try{
       const body=encodePlan(draft);
       if(userId&&supabase){
@@ -44,11 +44,10 @@ export function CategoryBudgets({ userId, personTag, month, items }: { userId?: 
     }catch(e){setError(e instanceof Error?e.message:'No se guardó el presupuesto.');}finally{setBusy(false);}
   }
   function editPlan(source: CategoryPlan) {
-    setDraft({...structuredClone(source),homePayments:source.homePayments??fixedHomePayments(personTag,month)});
+    setDraft(structuredClone(source));
     setError('');setNotice('');
   }
-  const payments=(draft||plan)?.homePayments??fixedHomePayments(personTag,month);
-  const fixedTotal=payments.reduce((s,p)=>s+p.amount,0);
+  const suggestion=suggestedPlan(personTag,month);
   const progress=plan?budgetProgress(items,plan,today()):[];
   const spent=Math.round(progress.reduce((s,r)=>s+r.spent,0)*100)/100,limit=progress.reduce((s,r)=>s+r.limit,0);
   const usd=items.some(t=>t.date.startsWith(month)&&t.date<=today()&&t.context==='Personal'&&t.kind==='expense'&&(t.flow_type||'operating')==='operating'&&t.currency==='USD');
@@ -56,12 +55,10 @@ export function CategoryBudgets({ userId, personTag, month, items }: { userId?: 
     <div className="budget-heading"><div><h2>Mi presupuesto</h2><p>{monthLabel(month)} · Personal · COP</p></div>{ready&&!loadError&&plan&&!draft&&<button className="show-more" onClick={()=>{editPlan(plan);}}>Editar presupuesto</button>}</div>
     {!ready?<p role="status">Cargando presupuesto…</p>:loadError?<p role="alert">{loadError} <button onClick={()=>setAttempt(x=>x+1)}>Reintentar presupuesto</button></p>:<>
       {!plan&&!draft&&<><p>Este mes todavía no tiene topes. Puedes empezar con una sugerencia y cambiarla.</p><button className="secondary" onClick={()=>editPlan(suggestedPlan(personTag,month))}>Crear presupuesto</button></>}
-      {payments.length>0&&!draft&&<section className="budget-fixed" aria-label="Pagos fijos del mes"><div className="budget-section-heading"><h3>Hogar · pagos fijos</h3><span>Pagos de casa · {monthLabel(month)}</span></div><div className="budget-fixed-grid">{payments.map(p=><div className="budget-fixed-item" key={p.name}><span>{p.name}</span><strong>{budgetMoney(p.amount,'COP')}</strong></div>)}</div>{plan&&plan.limits.Hogar>fixedTotal&&<p className="budget-hint">Otros gastos de Hogar: {budgetMoney(plan.limits.Hogar-fixedTotal,'COP')}</p>}<p className="budget-hint">{plan?'Estos pagos forman parte del tope de Hogar.':'Al crear el presupuesto, estos pagos ya vienen incluidos en Hogar.'} Presupuestarlos no significa que ya estén pagados.</p>{plan&&fixedTotal>plan.limits.Hogar&&<p className="budget-over">El tope de Hogar no alcanza para estos pagos. Revísalo en Editar presupuesto.</p>}</section>}
       {draft?<form onSubmit={save} className="budget-form"><p>Define cuánto quieres gastar como máximo. <strong>$0 significa no gastar en esa categoría.</strong></p><fieldset disabled={busy}>
-        {payments.length>0&&<section className="budget-fixed"><h3>Hogar · pagos fijos</h3><p className="budget-hint">Ya están incluidos en Hogar. Si cambias un pago, ajustamos ese tope por la misma diferencia.</p><div className="budget-inputs">{payments.map((p,index)=><label key={p.name}>{p.name}<MoneyInput aria-label={`Pago fijo de ${p.name}`} currency="COP" value={String(p.amount)} onValueChange={value=>{const amount=Number(value||0);setDraft({...draft,homePayments:payments.map((row,i)=>i===index?{...row,amount}:row),homeDetails:payments.map((row,i)=>`${row.name} ${budgetMoney(i===index?amount:row.amount,'COP')}`).join(' + ')+(draft.limits.Hogar>fixedTotal?` + otros gastos de Hogar ${budgetMoney(draft.limits.Hogar-fixedTotal,'COP')}`:''),limits:{...draft.limits,Hogar:Math.max(0,draft.limits.Hogar+amount-p.amount)}});}} /></label>)}</div></section>}
-        <h3>Topes por categoría</h3><p className="budget-hint">Hogar incluye los pagos de arriba. Los demás valores son editables.</p>
-        <div className="budget-inputs">{personalBudgetCategories.map(category=><label key={category}>{category}<MoneyInput aria-label={`Tope de ${category}`} currency="COP" value={String(draft.limits[category])} onValueChange={value=>setDraft({...draft,limits:{...draft.limits,[category]:value===''?0:Number(value)}})} /></label>)}</div>
-        <label>Qué incluye Hogar<textarea aria-label="Detalle del presupuesto de Hogar" rows={2} maxLength={400} value={draft.homeDetails} onChange={e=>setDraft({...draft,homeDetails:e.target.value})}/></label>
+        <h3>Topes por categoría</h3>
+        <div className="budget-inputs">{personalBudgetCategories.map(category=><label key={category}>{category}<MoneyInput aria-label={`Tope de ${category}`} currency="COP" placeholder={category==='Hogar'?new Intl.NumberFormat('es-CO').format(suggestion.limits.Hogar):'0'} value={draft.limits[category]===0?'':String(draft.limits[category])} onValueChange={value=>setDraft({...draft,limits:{...draft.limits,[category]:value===''?0:Number(value)}})} /></label>)}</div>
+        <label>Qué incluye Hogar<textarea aria-label="Detalle del presupuesto de Hogar" rows={2} maxLength={400} placeholder={suggestion.homeDetails} value={draft.homeDetails} onChange={e=>setDraft({...draft,homeDetails:e.target.value})}/></label>
         <p className="budget-draft-total">Total del mes: <strong>{budgetMoney(Object.values(draft.limits).reduce((s,v)=>s+v,0),'COP')}</strong></p>
         <p className="budget-hint">La sugerencia busca reducir el gasto, pero revísala con el dinero que esperas recibir y lo que necesitas ahorrar. La nevera y los sofás solo están incluidos en noviembre de 2026.</p>
         <div className="budget-actions"><button className="primary" type="submit">{busy?'Guardando…':'Guardar presupuesto'}</button><button className="secondary" type="button" onClick={()=>{setDraft(null);setError('');}}>Cancelar</button></div>
