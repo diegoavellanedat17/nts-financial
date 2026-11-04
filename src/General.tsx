@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { money, today, type Currency } from './finance';
+import { money, type Currency } from './finance';
 import { useTrm } from './useTrm';
 type Total = { person_tag: string; kind: string; category: string; currency: Currency; amount: number; pending_amount?: number };
-export function General({ userId }: { userId?: string }) {
- const [month,setMonth]=useState(()=>today().slice(0,7)),[view,setView]=useState<Currency|'total'>('total');
+export function General({ userId, month }: { userId?: string; month: string }) {
+ const [view,setView]=useState<Currency|'total'>('total');
  const [rows,setRows]=useState<Total[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
  const trm=useTrm(view==='total');
  useEffect(()=>{let active=true;setLoading(true);setError('');setRows([]);
@@ -23,7 +23,7 @@ export function General({ userId }: { userId?: string }) {
  const categories=Object.entries(selected.filter(r=>r.kind==='expense').reduce<Record<string,number>>((a,r)=>{a[r.category]=(a[r.category]||0)+r.amount;return a;},{})).sort((a,b)=>b[1]-a[1]);
  const share=expense?people[0].amount/expense*100:0;
  return <section className="general-summary" aria-label="Resumen general de Diego y Natalia">
-  <div className="general-heading"><h2>Diego y Natalia</h2><label><span className="sr-only">Mes de General</span><input type="month" value={month} max={today().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}} /></label></div>
+  <div className="general-heading"><h2>Diego y Natalia</h2></div>
   <div className="currency-switch" role="group" aria-label="Moneda de General">{(['total','COP','USD'] as const).map(c=><button key={c} aria-pressed={view===c} onClick={()=>setView(c)}>{c==='total'?'Total en COP':c}</button>)}</div>
   <p className="empty-note">Todos los ingresos · Solo gastos personales.</p>
   {loading?<p role="status">Cargando…</p>:error?<p role="alert">{error}{userId&&<button className="show-more" onClick={()=>setAttempt(n=>n+1)}>Reintentar</button>}</p>:!ready?<p role="status">{trm.error||'Cargando TRM…'}{trm.error&&<button className="show-more" onClick={trm.retry}>Reintentar TRM</button>}</p>:<>

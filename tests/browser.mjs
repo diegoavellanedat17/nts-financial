@@ -87,6 +87,7 @@ try {
   await page.reload();
   await page.getByRole('heading', { name: '¿Cómo va el consultorio?' }).waitFor();
   assert.match(await page.locator('.daily-balance h1').textContent(), /580\.000/);
+  if (await page.getByRole('button', { name: 'Volver al mes actual', exact: true }).count()) await page.getByRole('button', { name: 'Volver al mes actual', exact: true }).click();
   await page.getByRole('button', { name: 'Editar Gasto personal', exact: true }).click();
   await page.getByLabel('Monto en pesos', { exact: true }).fill('30000');
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
@@ -110,13 +111,12 @@ try {
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.match(await page.locator('.daily-balance h1').textContent(), /720\.000/);
-  await page.getByRole('button', { name: 'Ver anteriores', exact: true }).click();
-  assert.equal(await page.locator('.recent-list li').count(), 6);
+  assert.equal(await page.locator('.recent-list li').count(), 5); // El ingreso del mes anterior queda fuera.
   await page.getByRole('button', { name: 'Editar Laboratorio', exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar este movimiento', exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar movimiento', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('.recent-list li').count(), 5);
+  assert.equal(await page.locator('.recent-list li').count(), 4);
   assert.match(await page.locator('.daily-balance h1').textContent(), /720\.000/);
   await page.getByLabel('Opciones').click();
   const download = page.waitForEvent('download');
@@ -136,10 +136,12 @@ try {
   await page.getByRole('button', { name: 'Agregar fuente' }).click();
   await page.getByRole('button', { name: 'Cambiar nombre de Clínica Nueva' }).waitFor();
   await page.keyboard.press('Escape');
+  await page.getByLabel('¿Qué mes quieres ver?').selectOption(previousDate.slice(0, 7));
   await page.getByRole('button', { name: 'Editar Pago de Déntica', exact: true }).click();
   await page.locator('input[name=competence_date]').fill('2026-08-15');
   await page.getByRole('button', { name: 'Guardar ingreso', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  if (await page.getByRole('button', { name: 'Volver al mes actual', exact: true }).count()) await page.getByRole('button', { name: 'Volver al mes actual', exact: true }).click();
   await page.getByRole('button', { name: 'Editar Gasto personal', exact: true }).click();
   await page.locator('select[name=category]').selectOption('Alimentación');
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
@@ -279,7 +281,7 @@ try {
   await page.getByText('Se guardará como Personal · Transporte. Puedes cambiar la categoría.').waitFor();
   await page.getByRole('button', { name: 'Guardar gasto', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
-  const earlierButton = page.getByRole('button', { name: 'Ver anteriores', exact: true });
+  const earlierButton = page.getByRole('button', { name: 'Ver todos los del mes', exact: true });
   if (await earlierButton.count()) await earlierButton.click();
   await page.getByRole('button', { name: 'Editar Didi regreso a casa' }).click();
   assert.equal(await page.locator('select[name=category]').inputValue(), 'Transporte');

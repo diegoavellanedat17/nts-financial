@@ -13,7 +13,9 @@ try {
   }
   if (!ready) throw new Error('Vite no respondió en 20 segundos.');
   await mkdir('artifacts', { recursive: true });
-  const test = spawn(process.execPath, ['tests/browser.mjs'], { stdio: 'inherit', env: { ...process.env, APP_URL: origin } });
-  const code = await new Promise(resolve => test.on('exit', resolve));
-  process.exitCode = code === 0 ? 0 : 1;
+  for (const script of ['tests/browser.mjs', 'tests/month-filter-browser.mjs']) {
+    const test = spawn(process.execPath, [script], { stdio: 'inherit', env: { ...process.env, APP_URL: origin } });
+    const code = await new Promise(resolve => test.on('exit', resolve));
+    if (code !== 0) { process.exitCode = 1; break; }
+  }
 } finally { server.kill('SIGTERM'); }

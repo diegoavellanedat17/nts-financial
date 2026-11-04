@@ -281,3 +281,19 @@
 .general-income-list strong { color:var(--green); overflow-wrap:anywhere; }
 .general-pending { font-size:12px; color:var(--muted); line-height:1.6; margin:12px 0; }
 @media(max-width:380px) { .general-heading { align-items:flex-start; flex-direction:column; } }
+
+.month-filter { margin: 20px 0; padding: 18px; border: 1px solid #d9e5de; border-radius: 16px; background: #f2f7f3; }
+.month-filter > label { display: block; margin-bottom: 10px; font-weight: 650; color: #244c3d; }
+.month-controls { display: flex; gap: 10px; align-items: center; }
+.month-controls select { flex: 1; min-width: 0; width: 100%; padding: 12px 8px; border: 1px solid #bdcfc3; border-radius: 10px; background: white; color: #244c3d; font: inherit; font-weight: 600; }
+.month-controls button { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 44px; border: 1px solid #bdcfc3; border-radius: 10px; background: white; color: #244c3d; }
+.month-controls button:disabled { opacity: .35; cursor: default; }
+.month-filter > small { display: block; margin-top: 12px; color: #53675b; font-size: 12px; line-height: 1.5; }
+.month-filter > .show-more { margin-top: 10px; }
+.movements-heading { flex-wrap: wrap; }
+.movement-month { color: #53675b; font-size: 13px; }
+@media (max-width: 380px) {
+  .month-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .month-controls select { grid-column: 1 / -1; grid-row: 1; }
+  .month-controls button { width: 100%; }
+}
