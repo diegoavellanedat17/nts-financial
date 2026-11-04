@@ -1,3 +1,4 @@
+import { CategoryBudgets } from './CategoryBudgets';
 import { MonthFilter, monthLabel } from './MonthFilter';
 import { SpendingDonut } from './SpendingDonut';
 import { General } from './General';
@@ -266,6 +267,7 @@ function Dashboard({ userId, personTag }: { userId?: string; personTag: string }
       <div className="quick-actions"><button className="quick-action received" onClick={() => open('income')}><ArrowDownLeft size={24} /><span>{isDental ? 'Recibí dinero' : 'Entrada'}</span></button><button className="quick-action paid" onClick={() => open('expense')}><ArrowUpRight size={24} /><span>{isDental ? 'Pagué algo' : 'Salida'}</span></button></div>
       {!isDental && <button className="gmail-open" onClick={() => setGmailOpen(true)}>Revisar Gmail</button>}
       {isDental && totalReady && <section className="office-note"><div className="office-heading"><h2>¿Cómo va el consultorio?</h2><span>{periodLabel}</span></div><OfficeChart rows={periodSummary.monthly} currency={currency} /><OfficeReceipts items={received.filter(t => t.date.startsWith(month))} busy={busy} onRelease={releaseAdvance} onClarify={t => { setError(''); setClarifying(t); }} personTag={personTag} /></section>}
+      <CategoryBudgets key={`${personTag}-${month}`} userId={userId} personTag={personTag} month={month} items={items} />
       <Accounts userId={userId} personTag={personTag} items={items} accounts={accounts} onAccounts={setAccounts} onChanged={() => setReload(r => r + 1)} />
       <Reconciliation items={items} accounts={accounts} />
       <CreditCards userId={userId} personTag={personTag} />
