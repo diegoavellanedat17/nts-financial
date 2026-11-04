@@ -1,6 +1,10 @@
 import { expenseCategories, type Transaction } from '../src/finance.ts';
 export const personalBudgetCategories = expenseCategories.filter(c => !['Arriendo consultorio','Materiales','Laboratorio'].includes(c));
-export type CategoryPlan = { version: 1; month: string; currency: 'COP'; context: 'Personal'; limits: Record<string, number>; homeDetails: string };
+export type CategoryPlan = { version: 1; month: string; currency: 'COP'; context: 'Personal'; limits: Record<string, number>; homeDetails: string; homePayments?: { name: string; amount: number }[] };
+export function fixedHomePayments(person: string, month: string) {
+  if (month !== '2026-11') return [];
+  return person === 'diego' ? [{name:'Arriendo',amount:6500000},{name:'Nevera',amount:2600000},{name:'Sala / sofá',amount:1400000}] : [{name:'Sala / sofá',amount:1400000}];
+}
 export const budgetNotePrefix = 'Presupuesto mensual por categoría · v1\n';
 export function suggestedPlan(person: string, month: string): CategoryPlan {
   const november = month === '2026-11';
@@ -14,6 +18,7 @@ export function suggestedPlan(person: string, month: string): CategoryPlan {
 }
 export function validPlan(plan: CategoryPlan): boolean {
   return !!plan && plan.version===1 && /^\d{4}-(0[1-9]|1[0-2])$/.test(plan.month) && plan.currency==='COP' && plan.context==='Personal' &&
+    (plan.homePayments===undefined || (Array.isArray(plan.homePayments)&&plan.homePayments.length<=10&&plan.homePayments.every(p=>p&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=60&&Number.isSafeInteger(p.amount)&&p.amount>=0&&p.amount<=999999999))) &&
     typeof plan.homeDetails==='string' && plan.homeDetails.length<=400 && !!plan.limits &&
     Object.keys(plan.limits).length===personalBudgetCategories.length && personalBudgetCategories.every(c=>Number.isSafeInteger(plan.limits[c])&&plan.limits[c]>=0&&plan.limits[c]<=999999999);
 }

@@ -311,3 +311,22 @@
 .budget-inputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }.budget-form fieldset { border:0; padding:0; min-width:0; }.budget-form label { display:block; min-width:0; font-size:13px; }.budget-form input,.budget-form textarea { width:100%; box-sizing:border-box; padding:12px; border:1px solid #c9d7cd; border-radius:9px; font:inherit; background:white; }.budget-form textarea { margin-top:8px; }.budget-form>p { font-size:13px; line-height:1.6; }
 .budget-draft-total { font-size:16px; }.budget-actions { display:flex; gap:10px; flex-wrap:wrap; }.budget-saved { color:#176b58; font-size:13px; }
 @media(max-width:500px) { .category-budgets { padding:14px; }.budget-categories,.budget-inputs { grid-template-columns:1fr; }.budget-total { grid-template-columns:1fr; } }
+
+/* A dedicated, quieter space for planning the month. */
+.page-tabs { gap:clamp(14px,4vw,28px); }
+.page-tabs button { font-size:14px; white-space:nowrap; }
+.budget-fixed { margin:8px 0 24px; padding:18px; background:#f4f6ee; border-radius:14px; }
+.budget-fixed h3,.budget-form h3 { margin:0 0 10px; font-size:16px; }
+.budget-section-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; margin-bottom:14px; }
+.budget-section-heading>span { color:var(--muted); font-size:12px; }
+.budget-fixed-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.budget-fixed-item { display:flex; flex-direction:column; gap:8px; padding:14px; border:1px solid #dfe5d5; border-radius:10px; background:white; }
+.budget-fixed-item>span { color:var(--muted); font-size:13px; }
+.budget-fixed-item>strong { font-size:16px; }
+.budget-fixed .budget-hint { margin-bottom:0; }
+.budget-form .money-input input { border:0; padding:12px 0; margin:0; border-radius:0; background:transparent; }
+.budget-detail { margin:16px 0; font-size:13px; color:var(--muted); }
+.budget-detail summary { cursor:pointer; }
+.budget-empty-toggle { margin-top:16px; }
+.category-budgets { margin-top:18px; }
+@media(max-width:500px) { .budget-fixed { padding:12px; }.budget-fixed-grid { grid-template-columns:1fr; }.budget-fixed-item { flex-direction:row; justify-content:space-between; flex-wrap:wrap; } }

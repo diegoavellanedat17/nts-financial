@@ -40,3 +40,12 @@ it('abre presupuestos previos con las nuevas categorías en cero sin cambiar los
  expect(Object.values(restored.limits).reduce((a,b)=>a+b,0)).toBe(Object.values(old.limits).reduce((a,b)=>a+b,0));
  delete old.limits.Hogar;expect(()=>decodePlan(budgetNotePrefix+JSON.stringify(old),'2026-11')).toThrow();
 });
+
+it('conserva el detalle de pagos de Hogar sin sumarlo de nuevo y rechaza importes inválidos',()=>{
+ const plan=suggestedPlan('diego','2026-11');
+ plan.homePayments=[{name:'Arriendo',amount:6500000},{name:'Nevera',amount:2600000},{name:'Sala / sofá',amount:1400000}];
+ const restored=decodePlan(encodePlan(plan),'2026-11');
+ expect(restored.homePayments).toEqual(plan.homePayments);
+ expect(budgetProgress([],restored,'2026-11-03').reduce((s,r)=>s+r.limit,0)).toBe(15946000);
+ expect(()=>encodePlan({...plan,homePayments:[{name:'Nevera',amount:-1}]})).toThrow();
+});

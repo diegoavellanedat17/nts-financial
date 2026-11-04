@@ -18,6 +18,7 @@ try {
   }
   const chart=page.getByRole('region',{name:'Gastos por categoría',exact:true});
   for(const category of ['Mercado','Tarjeta de crédito'])await expect(chart.getByRole('button',{name:`Ver gastos de ${category}`,exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Presupuesto',exact:true}).click();
   const budgets=page.getByRole('region',{name:'Presupuesto personal por categoría',exact:true});
   await budgets.getByRole('button',{name:'Crear presupuesto',exact:true}).click();
   await budgets.getByRole('spinbutton',{name:'Tope de Mercado',exact:true}).fill('200000');
